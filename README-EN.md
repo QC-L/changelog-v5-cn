@@ -1,90 +1,90 @@
-[原文链接](README-EN.md)
+[Help by editing this file](https://github.com/webpack/changelog-v5/edit/master/README.md).
 
-# 简要说明
+# General direction
 
-此版本重点关注以下内容：
+This release focus on the following:
 
-- 我们尝试通过持久化存储优化构建性能。
-- 我们尝试采用更好的算法与 defalut 来改善长效缓存。
-- 我们尝试通过更好的 Tree Shaking 和代码生成来改善 bundle 的大小。
-- 我们尝试清除内部结构中奇怪的代码，同时在不影响 v4 功能基础上实现了新特性。
-- 我们目前尝试通过引入破坏性更改来为新特性做准备，以便于我们能尽可能长期地使用 v5。
+- We try to improve build performance with Persistent Caching.
+- We try to improve Long Term Caching with better algorithms and defaults.
+- We try to improve bundle size with better Tree Shaking and Code Generation
+- We try to cleanup internal structures that were left in a weird state, while implementing features in v4 without introducing any breaking changes.
+- We try to prepare for future features by introducing breaking changes now, allowing us to stay on v5 for as long as possible.
 
-# 迁移指南
+# Migration Guide
 
-=> [查阅迁移指南](https://github.com/webpack/changelog-v5/blob/master/MIGRATION%20GUIDE.md) <=
+=> [see here for a migration guide](https://github.com/webpack/changelog-v5/blob/master/MIGRATION%20GUIDE.md) <=
 
-# 主要更改
+# Major Changes
 
-## 移除废弃的代码
+## Removed Deprecated Items
 
-v4 中所有废弃的代码均已删除。
+All items deprecated in v4 were removed.
 
-**迁移**：以确保你的 webapck 4 不打印弃用警告。
+MIGRATION: Make sure that your webpack 4 build does not print deprecation warnings.
 
-以下是已删除但在 v4 中没有弃用警告的内容：
+Here are a few things that were removed but did not have deprecation warnings in v4:
 
-- 现在必须为 IgnorePlugin 和 BannerPlugin 传递一个 options 对象。
+- IgnorePlugin and BannerPlugin must now be passed an options object.
 
-## 自动移除 Node.js Polyfills
+## Automatic Node.js Polyfills Removed
 
-早期，webpack 的目的是允许在浏览器中运行大多数 node.js 模块，但是模块整体格局发生了变化，现在许多模块的主要用途是以编写前端为目的。webpack <= 4 附带了许多 Node.js 核心模块的 polyfil，一旦模块中使用了任何核心模块（即 ”crypto“ 模块），这些模块就会被自动启用。
+In the early days, webpack's aim was to allow running most node.js modules in the browser, but the module landscape changed and many module uses are now written mainly for frontend purposes. webpack <= 4 ships with polyfills for many of the node.js core modules, which are automatically applied once a module uses any of the core modules (i.e. the `crypto` module).
 
-虽然这使得为 Node.js 编写模块变得简单，但它会将超大的 polyfill 添加到 package 中。在许多情况下，这些 polyfill 并非必要。
+While this makes using modules written for node.js easy, it adds these huge polyfills to the bundle. In many cases these polyfills are unnecessary.
 
-webpack 5 会停止自动 polyfill 这些核心模块，并专注于与前端兼容的模块。
+webpack 5 stops automatically polyfilling these core modules and focuses on frontend-compatible modules.
 
-**迁移**:
+MIGRATION:
 
-- 尽可能尝试使用与前端兼容的模块。
-- 可以为 Node.js 核心模块手动添加 polyfill。错误信息将提示如何进行此操作。
-- package 作者：在 `package.json` 中使用 `browser` 字段，以使得 package 与前端代码兼容。为 borwser 提供可选的 implementations/dependencies。
+- Try to use frontend-compatible modules whenever possible.
+- It's possible to manually add a polyfill for a node.js core module. An error message will give a hint on how to achieve that.
+- Package authors: Use the `browser` field in `package.json` to make a package frontend-compatible. Provide alternative implementations/dependencies for the browser.
 
-**反馈**：无论是否喜欢上述修改，请都向我们提出反馈。我们并不确定是否会纳入最终版本。
+FEEDBACK: Please provide us with feedback whether you like or dislike the above mentioned change. We are uncertain whether this will make it into the final release or not.
 
-## 采用新算法生成 chunk ID 以及 module ID
+## Deterministic Chunk and Module IDs
 
-添加了用于长效缓存的新算法。在生产模式下，默认启用这些功能。
+New algorithms were added for long term caching. These are enabled by default in production mode.
 
 `chunkIds: "deterministic", moduleIds: "deterministic"`
 
-此算法采用确定性的方式将短数字 ID（3 或 4 个字符）分配给 modules 和 chunks。
-这是基于 bundle 大小和长效缓存间的折中方案。
+The algorithms assign short (3 or 4 character) numeric IDs to modules and chunks in a deterministic way.
+This is a trade-off between bundle size and long term caching.
 
-**迁移**：最好使用 `chunkIds` 和 `moduleIds` 的默认值。你还可以选择使用旧的默认值，`chunkIds: "size", modules: "size"`，这将生成较小的 bundle，但这会使得它们频繁地进行缓存。
+MIGRATION: Best use the default values for `chunkIds` and `moduleIds`. You can also opt-in to the old defaults `chunkIds: "size", moduleIds: "size"`, this will generate smaller bundles, but invalidate them more often for caching.
 
-## 以新算法混淆 export 名称
+## Deterministic Mangled Export Names
 
-添加了新算法来处理 export 的名称。默认情况下启用。
+A new algorithms was added to mangling export names. It's enabled by default.
 
-如果可能，它将以确定性方式破坏 export 的名称。
+It will mangle export names when possible in a deterministic way.
 
-**迁移**：不需要进行任何操作。
+MIGRATION: Nothing to do.
 
-## 为 chunk IDs 命名
+## Named Chunk IDs
 
-在开发模式下默认启用，以新的算法为 chunk id 命名，给 chunk（以及文件名）提供易于理解的名称。
-module ID 由其相对于 `context` 的路径决定。
-chunk ID 由 chunk 的内容决定。
+A new named chunk id algorithm enabled by default in development mode, gives chunks (and filenames) human-readable names.
+A Module ID is detemined by its path, relative to the `context`.
+A Chunk ID is determined by the chunk's content.
 
-因此，你不再需要使用 `import(/* webpackChunkName: "name" */ "module")` 进行调试。
-但是，如果你要控制生产环境的文件名，那仍可使用。
+So you no longer need to use `import(/* webpackChunkName: "name" */ "module")` for debugging.
+But it would still make sense, if you want to control the filenames for production environments.
 
-可以在生产中使用 `chunkIds: "named"`，但要确保在使用时不会意外地泄露有关模块名称的敏感信息。
+It's possible to use `chunkIds: "named"` in production, but make sure not to accidentically expose sensitive information about module names.
 
-**迁移**：如果你不喜欢在开发中更改文件名，则可以传递 `chunkIds: "natural"` 以使用旧的数字模式。
+MIGRATION: If you dislike the filenames being changed in development, you can pass `chunkIds: "natural"` in order to use the old numberic mode.
 
-## JSON 模块
+## JSON modules
 
-JSON 模块现在符合规范，并会在使用非默认导出时发出警告。
+JSON modules now align with the spec and emit a warning when using a non-default export.
 
-**迁移**：使用 `default export`。
+MIGRATION: Use the default export.
 
-（自 alpha.16 起）
+(since alpha.16)
 
-## 嵌套 tree-shaking
+## Nested tree-shaking
 
-webpack 现在可以追踪对 exports 嵌套属性的访问。重新导出 namespace 对象，这可以改善 Tree Shaking 操作（未使用 export elimination 和 export mangling）。
+webpack is now able to track access to nested properties of exports. This can improve Tree Shaking (Unused export elimination and export mangling) when reexporting namespace objects.
 
 ``` js
 // inner.js
@@ -100,15 +100,15 @@ import * as module from "./module";
 console.log(module.inner.a);
 ```
 
-在此示例中，可以在生成模式下移除 export `b`。
+In this example the export `b` can be removed in production mode.
 
-（从 alpha.15 起）
+(since alpha.15)
 
-## 内部模块（inner-module） tree-shaking
+## Inner-module tree-shaking
 
-webpack 4 没有分析模块 export 与 import 之间的依赖关系。webpack 5 有一个新的选项 `optimization.innerGraph`，该选项在生产模式下默认启用，它对模块中的符号进行分析以找出从 export 到 import 的依赖关系。
+webpack 4 didn't analyse dependencies between exports and imports of an module. webpack 5 has a new option `optimization.innerGraph`, which is enabled by default in production mode, that runs a analysis on symbols in a module to figure out dependencies from exports to imports.
 
-如下述模块所示：
+In an module like this:
 
 ``` js
 import { something } from "./something";
@@ -122,58 +122,58 @@ export function test() {
 }
 ```
 
-内部图算法将确定仅在使用 export 的 `test` 时使用 `something`。这样可以将更多 export 标记为未使用，并从 bundle 中删除更多的代码。
+The inner graph algorithm will figure out that `something` is only used when the `test` export is used. This allows to flag more exports as unused and to omit more code from the bundle.
 
-如果设置了 `"sideEffects": false`，则可以省略更多模块。在此示例中，当未使用 export 的 `test` 时，将忽略 `./something`。
+When `"sideEffects": false` is set, this allows to omit even more modules. In this example `./something` will be omitted when the `test` export is unused.
 
-如需获取有关未使用的 export 的信息，需使用 `optimization.unusedExports`。如需删除无副作用的模块，需使用 `optimization.sideEffects`。
+To get the information about unused exports `optimization.unusedExports` is required. To remove side-effect-free modules `optimization.sideEffects` is required.
 
-此方式可以分析以下符号：
-* 函数声明（function declarations）
-* class 声明（class declarations）
-* 带有 `export default` 或带有变量声明（variable declarations）的
-  * 函数表达式（function expressions）
-  * class 语句（class expressions）
-  * `/*#__PURE__*/` 表达式
-  * 局部变量（local variables）
+The following symbols can be analysed:
+* function declarations
+* class declarations
+* `export default` with or variable declarations with
+  * function expressions
+  * class expressions
+  * `/*#__PURE__*/` expressions
+  * local variables
   * imported bindings
 
-反馈：如果您发现此分析中缺少某些内容，请反馈 issues，我们考虑将其添加。
+FEEDBACK: If you find something missing in this analysis, please report an issue and we consider adding it.
 
-此优化也称为深度作用域分析（Deep Scope Analysis）。
+This optimization is also known as Deep Scope Analysis.
 
-（自 alpha.24 起）
+(since alpha.24)
 
-## 编译器空闲并关闭（idle and close）
+## Compiler Idle and Close
 
-现在需要再使用编译器（compilers）后将其关闭。编译器具有 enter 和 leave 空闲状态，并具有这些状态的 hook。插件可以使用这些 hook 执行不重要的工作。（即，持久化缓存将延迟存储到磁盘）。在编译器关闭时，所有剩余工作应尽快完成。回调执行时，表明关闭已完成。
+Compilers now need to be closed after being used. Compilers now enter and leave idle state and have hooks for these states. Plugins may use these hooks to do unimportant work. (i. e. the Persistent cache slowy stores the cache to disk). On compiler close - All remaining work should be finished as fast as possible. A callback signals the closing as done.
 
-插件及其各自的作者应该会期望某些用户可能会忘记关闭编译器。因此，所有工作最终也应该在空闲时完成。当工作完成时，应防止进程退出。
+Plugins and their respective authors should expect that some users may forget to close the Compiler. So, all work should eventually be finishing while in idle too. Processes should be prevented from exiting when the work is being done.
 
-当传递 callback 时，`webpack()` 实例会自动调用 `close`。
+The `webpack()` facade automatically calls `close` when being passed a callback.
 
-**迁移**：使用 node.js API 时，请确保在完成后调用 `Complier.close`。
+MIGRATION: While using the node.js API, make sure to call `Compiler.close` when done.
 
-## 改进代码生成
+## Improved Code Generation
 
-此版本添加了新的选项 `output.ecmaVersion`。它允许为 webpack 生成的运行时代码指定最大 EcmaScript 版本。
+There is a new option `output.ecmaVersion` now. It allows to specify the maximum EcmaScript version for runtime code generated by webpack.
 
-webpack 4 仅能于生成 ES5 的代码。webpack 5 现支持 ES5 或 ES2015 的代码。
+webpack 4 used to only emit ES5 code. webpack 5 supports ES5 or ES2015 code now.
 
-默认配置将生成 ES2015 的代码。如果你需要支持旧版浏览器（例如，IE11），则可以将其降为 `output.ecmaVersion: 5`。
+The default configuration will generate ES2015 code. If you need to support older browser (like IE11), you can decrease this to `output.ecmaVersion: 5`.
 
-设置为 `output.ecmaVersion: 2015` 将使用箭头函数生成较短的代码，以及更多符合规范的代码，使用 const 声明（TDZ）作为 `export default`。
+Choosing `output.ecmaVersion: 2015` will generate shorter code using arrow functions and more spec-comform code using `const` declarations with TDZ for `export default`.
 
-（自 alpha.23 起）
+(since alpha.23)
 
-生产模式中的默认压缩（default minimizing）也使用 `ecmaVersion` 选项生成较小的代码。（自 alpha.31 起）
+The default minimizing in production mode also used this `ecmaVersion` option to generate smaller code. (since alpha.31)
 
-## chunk 分割以及 module size
+## SplitChunks and Module Sizes
 
-与之前展示单个数值相比，模块现在以更好的方式展示其 size。除此之外，现在也拥有了不同类型的 size。
+Modules now express size in a better way than displaying a single number. Also, there are now different types of sizes.
 
-目前，SplitChunksPlugin 已知道如何处理这些不同的 size，并将它们应用于 `minSize` 和 `maxSize`。
-默认情况下，仅处理 javascript 的 size，但你可以传递多个参数来管理它们：
+The SplitChunksPlugin now knows how to handle these different sizes and uses them for `minSize` and `maxSize`.
+By default, only `javascript` size is handled, but you can now pass multiple values to manage them:
 
 ```js
 minSize: {
@@ -182,228 +182,228 @@ minSize: {
 }
 ```
 
-**迁移**：检查构建中使用了哪些类型的 size，并在 `splitChunks.minSize` 和可选的 `splitChunks.maxSize` 中进行配置。
+MIGRATION: Check which types of sizes are used in your build and configure these in `splitChunks.minSize` and optionally in `splitChunks.maxSize`.
 
-## 持久化缓存
+## Persistent Caching
 
-目前包含文件系统缓存。它是可选的，可以通过以下配置启用：
+There is now a filesystem cache. It's opt-in and can be enabled with the following configuration:
 
 ``` js
 cache: {
-  // 1. 设置缓存类型为 filesystem
+  // 1. Set cache type to filesystem
   type: "filesystem",
   
   buildDependencies: {
-    // 2. 将你的配置添加为 buildDependency 以在更改配置时，使得缓存失效。
+    // 2. Add your config as buildDependency to get cache invalidation on config change
     config: [__filename]
   
-    // 3. 如果你还有其他需要构建的内容，可以在此处添加它们
-    // 请注意，loader 和所有模块中配置中引用的内容会自动添加
+    // 3. If you have other things the build depends on you can add them here
+    // Note that webpack, loaders and all modules referenced from your config are automatically added
   }
 }
 ```
 
-**重要内容**：
+Important notes:
 
-默认情况下，webpack 会假定其所处的 `node_modules` 目录**仅**由包管理器修改。针对 node_modules 目录，将跳过哈希和时间戳处理。出于性能方面考虑，仅使用 package 的名称和版本。symlinks（例如，`npm/yarn link`）很友好。除非你使用 `cache.managedPaths: []` 选项取消此优化，否则请不要直接在 `node_modules` 中编辑文件。
+By default webpack assumes that the `node_modules` directory, which webpack is inside of, is **only** modified by a package manager. Hashing and timestamping is skipped for node_modules. Instead only the package name and version is used for performance reasons. Symlinks (i. e. `npm/yarn link`) are fine. Do not edit files in `node_modules` directly unless you opt-out of this optimization with `cache.managedPaths: []`
 
-默认情况下，缓存将分别存储在 `node_modules/.cache/webpack` 中（当使用 node_modules 时）和 `.pnp/.cache/webpack`（当使用 Yarn PnP 时，自 alpha.21 起）。你可能永远不必手动删除它。
+The cache will be stored into `node_modules/.cache/webpack` (when using node_modules) resp. `.pnp/.cache/webpack` (when using Yarn PnP, since alpha.21) by default. You probably never have to delete it manually.
 
-（自 alpha.20 起）
+(since alpha.20)
 
-当使用 Yarn PnP webpack 时，如果 yarn 的缓存不可变（通常不会发生变化）。你可以通过 `cache.immutablePaths: []` 退出此优化。
+When using Yarn PnP webpack assumes that the yarn cache is immutable (which it usually is). You can opt-out of this optimization with `cache.immutablePaths: []`
 
-（自 alpha.21 起）
+(since alpha.21)
 
 
-## 用于 single-file-target 的 chunk 分割
+## SplitChunks for single-file-targets
 
-目前，仅允许启动单个文件 target（如 node，WebWorker，electron main）支持在运行时自动加载引导程序所需的相关代码片段。
+Targets that only allow to startup a single file (like node, WebWorker, electron main) now support loading the dependent pieces required for bootstrap automatically by the runtime.
 
-这允许对带有 `chunks: "all"` 的 target 使用 `splitChunks`。
+This allows to use `splitChunks` for these targets with `chunks: "all"`.
 
-值得注意的是，由于 chunk 加载是异步的，因此这也会使初始估算也为异步操作。当使用 `output.library` 时，这可能会出现问题，因为导出的值的类型目前为 Promise。从 alpha.14 开始，这将不适用于 `target: "node"`，因为 chunk 加载在此 target 下为同步。
+Note that since chunk loading is async, this makes initial evaluation async too. This can be an issue when using `output.library`, since the exported value is an Promise now. Since alpha.14 this do not apply to `target: "node"` since chunk loading is sync here.
 
-（自 alpha.3 起）
+(since alpha.3)
 
-## 更新解析器
+## Updated Resolver
 
-`enhanced-resolve` 已更新至 v5。具体改进如下：
+`enhanced-resolve` was updated to v5. This has the following improvements:
 
-- 当使用 Yarn PnP 时，解析器将直接处理无需其他插件
-- 此 resolve 可追踪更多的依赖项，例如文件缺失
-- 别名（aliasing）可能包含多种选择
-- 可以设置别名（aliasing）为 `false`
-- 性能提升
+- When Yarn PnP is used, the resolver will handle it without an additional plugin
+- The resolve tracks more dependencies, like missing files
+- aliasing may have multiple alternatives
+- aliasing to `false` is possible now
+- Increased performance
 
-（自 alpha.18 起）
+(since alpha.18)
 
-## 不包含 JS 的 chunk
+## Chunks without JS
 
-不包含 JS 代码的 chunk 将不再生成 JS 文件。
+Chunks that contain no JS code, will no longer generate a JS file.
 
-（自 alpha.14 起）
+(since alpha.14)
 
-## 实验阶段特性
+## Experiments
 
-并非所有特性从开始就文档。在 webpack 4 中，我们添加了实验性功能，并在 changelog 中指出它们是实验性的，但是从配置中并不能很清楚的了解这些功能是实验性的。
+Not all features are stable from the beginning. In webpack 4 we added experimental features and noted in changelog that they are experimental, but it was not always clear from the configuration that these features are experimental.
 
-在 webpack 5 中，有一个新的 `experiments` 配置项，允许启用实验性功能。这样可以清楚地了解启用/使用了哪些实验特性。
+In webpack 5 there is a new `experiments` config option which allows to enabled experimental features. This makes it clear which ones are enabled/used.
 
-虽然 webpack 遵循语义版本控制，但是实验性功能将成为例外。它可能包含 webpack 次要版本的破坏性更改。发生这种情况时，我们将在 changelog 中添加清晰的注释。这促使我们可以更快地迭代实验性功能，同时还可以使用我们在主要版本上停留更长时间以获得稳定的功能。
+While webpack follows semantic versioning, it will make an exception for experimental features. Experimental features might contain breaking changes in minor webpack versions. When this happens we will add a clear note into the changelog. This will allow us to interate faster for experimental features, while also allowing us to stay longer on a major version for stable features.
 
-以下实验性功能将随 webpack 5 一同发布：
+The following experiments will ship with webpack 5:
 
-* 像 webpack 4 一样对 `.mjs` 提供支持（`experiments.mjs`）
-* 像 webpack 4 一样对旧版 WebAssembly 提供支持（`experiments.syncWebAssembly`）
-* 根据[更新规范](https://github.com/WebAssembly/esm-integration) 对新版 WebAssembly 提供支持（`experiments.asyncWebAssembly`）
-  * 这使得 WebAssembly 模块成为异步模块
-* [Top Level Await](https://github.com/tc39/proposal-top-level-await) Stage 3 阶段提案（`experiments.topLevelAwait`）
-  * 在顶层使用 `await` 使模块成为异步模块
-* 使用 `import` 引入异步模块（`experiments.importAsync`）
-* 使用 `import await` 引入异步模块（`experiments.importAwait`）
-* `asset` 模块类似类似于 `file-loader`（`experiments.asset`）（自 alpha.19 起）
-* 导出 bundle 作为模块（`experiments.outputModule`）（自 alpha.31 起）
-  * 这将从 bundle 中移除 IIFE 的包装器，强制执行严格模式，通过 `<script type="module">` 进行懒加载，并在 `module` 模式下将其进行压缩
+* `.mjs` support like in webpack 4 (`experiments.mjs`)
+* Old WebAssembly support like in webpack 4 (`experiments.syncWebAssembly`)
+* New WebAssembly support acording to the [updated spec](https://github.com/WebAssembly/esm-integration) (`experiments.asyncWebAssembly`)
+  * This makes a WebAssembly module an async module
+* [Top Level Await](https://github.com/tc39/proposal-top-level-await) Stage 3 proposal (`experiments.topLevelAwait`)
+  * Using `await` on top-level makes the module an async module
+* Importing async modules with `import` (`experiments.importAsync`)
+* Importing async modules with `import await` (`experiments.importAwait`)
+* The `asset` module type which is similar to the `file-loader` (`experiments.asset`) (since alpha.19)
+* Emitting bundle as module (`experiments.outputModule`) (since alpha.31)
+  * This removed the wrapper IIFE from the bundle, enforces strict mode, lazy loads via `<script type="module">` and minimized in module mode
 
-请注意，这也意味着针对 `.mjs` 的支持和 WebAssembly 的支持将被**默认禁用**。
+Note that this also means `.mjs` support and WebAssembly support are now disabled by default.
 
-（自 alpha.15 起）
+(since alpha.15)
 
 ## Stats
 
-chunk 间关系默认情况下是隐藏的。可以使用 `stats.chunkRelations` 进行切换。
+Chunk relations are hidden by default now. This can be toggled with `stats.chunkRelations`.
 
-（自 alpha.1 起）
+(since alpha.1)
 
-Stats 现阶段可以区分 `files` 和 `auxiliaryFiles`。
+Stats differentiate between `files` and `auxiliaryFiles` now.
 
-（自 alpha.19 起）
+(since alpha.19)
 
-默认情况下，Stats 会隐藏模块和 chunk id。可以使用 `stats.ids` 进行切换。
+Stats hides module and chunk ids by default now. This can be toggled with `stats.ids`.
 
-所有模块的列表均按照到 entrypoint 的距离排序。可以使用 `stats.modulesSort` 进行切换。
+The list of all modules is sorted by distance to entrypoint now. This can be changed with `stats.modulesSort`.
 
-chunk 模块列表和 chunk 根模块列表分别根据模块名进行排序。可以分别使用 `stats.chunkModulesSort` 和 `stats.chunkRootModulesSort` 进行更改。
+The list of chunk modules resp. chunk root modules is sorted by module name now. This can be changed with `stats.chunkModulesSort` resp. `stats.chunkRootModulesSort`.
 
-在串联模块中，嵌套模块列表进行拓扑排序。可以通过 `stats.nestedModulesSort` 进行更改。
+The list of nested modules in concatenated modules is sorted topologicial now. This can be changed with `stats.nestedModulesSort`.
 
-chunks 和 assets 会显示 chunk id 的提示。
+Chunks and Assets show chunk id hints now.
 
-（自 alpha.31 起）
+(since alpha.31)
 
-## 最低 Node.js 版本
+## Minimum Node.js Version
 
-Node.js 的最低支持版本从 6 变更为 8。
+The minimum supported node.js version has increased from 6 to 8.
 
-**迁移**：升级到最新的 node.js 可用版本。
+MIGRATION: Upgrade to the latest node.js version available.
 
-# 配置变更
+# Changes to the Configuration
 
-## 结构变更
+## Changes to the Structure
 
-- 移除 `cache: Object`：不能设置为内存缓存对象
-- 添加 `cache.type`：可以设置为 `"memory"` 或 `"filesystem"`
-- 为 `cache.type = "filesystem"` 添加新配置项：
+- `cache: Object` removed: Setting to a memory-cache object is no longer possible
+- `cache.type` added: It's now possible to choose between `"memory"` and `"filesystem"`
+- New configuration options for `cache.type = "filesystem"` added:
   - `cache.cacheDirectory`
   - `cache.name`
   - `cache.version`
   - `cache.store`
-  - ~`cache.loglevel`~（自 alpha.20 起被移除）
+  - ~`cache.loglevel`~ (removed since alpha.20)
   - `cache.hashAlgorithm`
-  - `cache.idleTimeout`（自 alpha.8 起）
-  - `cache.idleTimeoutForIntialStore`（自 alpha.8 起）
-  - `cache.managedPaths`（自 alpha.20 起）
-  - `cache.immutablePaths`（自 alpha.21 起）
-  - `cache.buildDependencies`（自 alpha.20 起）
-- 添加 `resolve.cache`：允许禁用/启用安全 resolve 缓存
-- 移除 `resolve.concord`
-- 移除用于原生 node.js 模块自动的 polyfill
-  - 移除 `node.Buffer`
-  - 移除 `node.console`
-  - 移除 `node.process`
-  - 移除 `node.*`（node.js 原生模块）
-  - 迁移：使用 `resolve.alias` 和 `ProvidePlugin`。发生错误会给出提示。
-- `output.filename` 可以赋值函数（自 alpha.17 起）
-- 添加 `output.assetModuleFilename`（自 alpha.19 起）
-- `resolve.alias` 的值可以为数组或 `false`（自 alpha.18起）
-- 添加 `optimization.chunkIds: "deterministic"`
-- 添加 `optimization.moduleIds: "deterministic"`
-- 添加 `optimization.moduleIds: "hashed"`
-- 添加 `optimization.moduleIds: "total-size"`
-- 移除 module 和 chunk id 的相关的弃用选项
-  - 移除 `optimization.hashedModuleIds`
-  - 移除 `optimization.namedChunks`（`NamedChunksPlugin` 与之相同）
-  - 移除 `optimization.namedModules`（`NamedModulesPlugin` 与之相同）
-  - 移除 `optimization.occurrenceOrder`
-  - 迁移：使用 `chunkIds` 或 `moduleIds`
-- `optimization.splitChunks` `test` 不在匹配 chunk 名
-  - 迁移：使用 test 函数
+  - `cache.idleTimeout` (since alpha.8)
+  - `cache.idleTimeoutForIntialStore` (since alpha.8)
+  - `cache.managedPaths` (since alpha.20)
+  - `cache.immutablePaths` (since alpha.21)
+  - `cache.buildDependencies` (since alpha.20)
+- `resolve.cache` added: Allows to disable/enable the safe resolve cache
+- `resolve.concord` removed
+- Automatic polyfills for native node.js modules were removed
+  - `node.Buffer` removed
+  - `node.console` removed
+  - `node.process` removed
+  - `node.*` (node.js native module) removed
+  - MIGRATION: `resolve.alias` and `ProvidePlugin`. Errors will give hints.
+- `output.filename` can now be a function (since alpha.17)
+- `output.assetModuleFilename` added (since alpha.19)
+- `resolve.alias` values can be arrays or `false` now (since alpha.18)
+- `optimization.chunkIds: "deterministic"` added
+- `optimization.moduleIds: "deterministic"` added
+- `optimization.moduleIds: "hashed"` deprecated
+- `optimization.moduleIds: "total-size"` removed
+- Deprecated flags for module and chunk ids were removed
+  - `optimization.hashedModuleIds` removed
+  - `optimization.namedChunks` removed (`NamedChunksPlugin` too)
+  - `optimization.namedModules` removed (`NamedModulesPlugin` too)
+  - `optimization.occurrenceOrder` removed
+  - MIGRATION: Use `chunkIds` and `moduleIds`
+- `optimization.splitChunks` `test` no longer matches chunk name
+  - MIGRATION: Use a test function
     `(module, { chunkGraph }) => chunkGraph.getModuleChunks(module).some(chunk => chunk.name === "name")`
-- 在 `optimization.splitChunks` 中添加 `minRemainingSize`（自 alpha.13 起）
-- `optimization.splitChunks` `filename` 可以赋值函数 (since alpha.17)
-- `optimization.splitChunks` sizes 可以为每个源类型的 size 对象
+- `optimization.splitChunks` `minRemainingSize` was added (since alpha.13)
+- `optimization.splitChunks` `filename` can now be a function (since alpha.17)
+- `optimization.splitChunks` sizes can now be objects with a size per source type
   - `minSize`
   - `minRemainingSize`
   - `maxSize`
-  - `maxAsyncSize`（自 alpha.13起）
+  - `maxAsyncSize` (since alpha.13)
   - `maxInitialSize`
-- 在 `optimization.splitChunks` 中添加 `maxAsyncSize` 和 `maxInitialSize`：允许为初始和异步 chunk 指定不同的最大 size。
-- 移除 `optimization.splitChunks` 中的 `name: true`：不再支持自动命名
-  - 迁移：使用默认值。`chunkIds: "named"` 将为你的文件提供有用的名称以便于调试
-- 添加 `optimization.splitChunks.cacheGroups[].idHint`：将提示如何命名 chunk id
-- 移除 `optimization.splitChunks` 中的 `automaticNamePrefix`
-  - **迁移**：使用 `idHint` 替代
-- `optimization.splitChunks` 中的 `filename` 不再局限于初始 chunk（自 alpha.11 起）
-- 添加 `optimization.mangleExports`（自 alpha.10 起）
-- 移除 `output.devtoolLineToLine`
-  - **迁移**：无替代方式
-- `output.hotUpdateChunkFilename: Function` 现在被禁止：不会生效。
-- `output.hotUpdateMainFilename: Function` 现在被禁止：不会生效。
-- `module.rules` 中的 `resolve` 和 `parser` 将以不同的方式合并（对象会进行深度合并，数组将采用 `"..."` 进行展开以获取之前的值）（自 alpha.13 起）
-- `module.rules` 中的 `query` 和 `loaders` 已被移除（自 alpha.13 起）
-- 添加 `stats.chunkRootModules`：展示 chunk 的根模块
-- 添加 `stats.orphanModules`：展示未触发的模块。
-- 添加 `stats.runtime`：展示 runtime 模块
-- 添加 `stats.chunkRelations`：显示 parent/children/sibling chunk（自 alpha.1 起）
-- 添加 `stats.preset`：选择 preset（自 alpha.1 起）
-- `BannerPlugin.banner` 签名变更
-  - 移除 `data.basename`
-  - 移除 `data.query`
-  - **迁移**：从 `filename` 中进行提取
-- 移除 `SourceMapDevToolPlugin` 中的 `lineToLine`
-  - **迁移**：无替代方式
-- `[hash]` 不支持完整编译的 hash
-  - **迁移**：使用 `[fullhash]` 或采用更好的 hash 选项
-- `[modulehash]` 被废弃
-  - **迁移**：使用 `[hash]` 代替
-- `[moduleid]` 被废弃
-  - **迁移**：使用 `[id]` 代替
-- 移除 `[filebase]`
-  - **迁移**：使用 `[base]` 代替
-- 基于文件模板的新占位符（即 SourceMapDevToolPlugin）
+- `optimization.splitChunks` `maxAsyncSize` and `maxInitialSize` added next to `maxSize`: allows to specify different max sizes for initial and async chunks
+- `optimization.splitChunks` `name: true` removed: Automatic names are no longer supported
+  - MIGRATION: Use the default. `chunkIds: "named"` will give your files useful names for debugging
+- `optimization.splitChunks.cacheGroups[].idHint` added: Gives a hint how the named chunk id should be chosen
+- `optimization.splitChunks` `automaticNamePrefix` removed
+  - MIGRATION: Use `idHint` instead
+- `optimization.splitChunks` `filename` is no longer restricted to initial chunks (since alpha.11)
+- `optimization.mangleExports` added (since alpha.10)
+- `output.devtoolLineToLine` removed
+  - MIGRATION: No replacement
+- `output.hotUpdateChunkFilename: Function` is now forbidden: It never worked anyway.
+- `output.hotUpdateMainFilename: Function` is now forbidden: It never worked anyway.
+- `module.rules` `resolve` and `parser` will merge in a different way (objects are deeply merged, array may include `"..."` to reference to prev value) (since alpha.13)
+- `module.rules` `query` and `loaders` were removed (since alpha.13)
+- `stats.chunkRootModules` added: Show root modules for chunks
+- `stats.orphanModules` added: Show modules which are not emitted
+- `stats.runtime` added: Show runtime modules
+- `stats.chunkRelations` added: Show parent/children/sibling chunks (since alpha.1)
+- `stats.preset` added: select a preset (since alpha.1)
+- `BannerPlugin.banner` signature changed
+  - `data.basename` removed
+  - `data.query` removed
+  - MIGRATION: extract from `filename`
+- `SourceMapDevToolPlugin` `lineToLine` removed
+  - MIGRATION: No replacement
+- `[hash]` as hash for the full compilation is now deprecated
+  - MIGRATION: Use `[fullhash]` instead or better use another hash option
+- `[modulehash]` is deprecated
+  - MIGRATION: Use `[hash]` instead
+- `[moduleid]` is deprecated
+  - MIGRATION: Use `[id]` instead
+- `[filebase]` removed
+  - MIGRATION: Use `[base]` instead
+- New placeholders for file-based templates (i. e. SourceMapDevToolPlugin)
   - `[name]`
   - `[base]`
   - `[path]`
   - `[ext]`
-- 当向 `externals` 传递一个函数时，它将具有不同的函数签名 `({ context, request }, callback)`
-  - **迁移**：更改函数签名
-- 添加 `experiments`（请参阅上述实验部分，自 alpha.19 起）
-- 添加 `watchOptions.followSymlinks`（自 alpha.19 起）
+- `externals` when passing a function, it has now a different signature `({ context, request }, callback)`
+  - MIGRATION: Change signature
+- `experiments` added (see Experiments section above, since alpha.19)
+- `watchOptions.followSymlinks` added (since alpha.19)
 
-## 默认值变更
+## Changes to the Defaults
 
-- 默认情况下，仅对 `node_modules` 启用 `module.unsafeCache`
-- 在生产模式下，`optimization.moduleIds` 的默认值从 `size` 替换为 `deterministic`
-- 在生产模式下，`optimization.chunkIds` 的默认值从 `total-size` 替换为 `deterministic`
-- 在 `none` 模式下，`optimization.nodeEnv` 默认为 `false`
-- `optimization.splitChunks` 中的 `minRemainingSize` 默认为 `minSize`（自 alpha.13 起）
-  - 如果剩余部分过小，这将减少创建 chunk 的数量
-- 当使用 `cache` 时，`resolve(Loader).cache` 默认为 `true`
-- `resolve(Loader).cacheWithContext` 默认为 `false`
-- ~`node.global` 默认为 `false`~（自 alpha.4 起被移除）
-- `resolveLoader.extensions` 移除 `.json`（自 alpha.8 起）
-- 当 node-`target` 时，`node.global` 中的 `node.__filename` 和 `node.__dirname` 默认为 `false`（自 alpha.14 起）
+- `module.unsafeCache` is now only enabled for `node_modules` by default
+- `optimization.moduleIds` defaults to `deterministic` in production mode, instead of `size`
+- `optimization.chunkIds` defaults to `deterministic` in production mode, instead of `total-size`
+- `optimization.nodeEnv` defaults to `false` in `none` mode
+- `optimization.splitChunks` `minRemainingSize` defaults to `minSize` (since alpha.13)
+  - This will lead to less splitted chunks created in cases where the remaining part would be too small
+- `resolve(Loader).cache` defaults to `true` when `cache` is used
+- `resolve(Loader).cacheWithContext` defaults to `false`
+- ~`node.global` defaults to `false`~ (since alpha.4 removed)
+- `resolveLoader.extensions` remove `.json` (since alpha.8)
+- `node.global` `node.__filename` and `node.__dirname` defaults to `false` in node-`target`s (since alpha.14)
 
 # Major Internal Changes
 
