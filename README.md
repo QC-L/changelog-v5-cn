@@ -215,7 +215,6 @@ cache: {
 
 （自 alpha.21 起）
 
-
 ## 用于 single-file-target 的 chunk 分割
 
 目前，仅允许启动单个文件 target（如 node，WebWorker，electron main）支持在运行时自动加载引导程序所需的相关代码片段。
