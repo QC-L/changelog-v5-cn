@@ -1,69 +1,69 @@
-Welcome to the persistent caching guide.
+欢迎来到持久化缓存指南。
 
 # Opt-in
 
-First note that persistent caching is not enabled by default. You have to opt-in using it.
+首先，要注意的是默认情况下不会启用持久化缓存。你可以自行选择启用。
 
-Why is that?
-Webpack tries to favor safety over performance.
-We don't want to enable a feature by default that will improve your performance in 95%, but breaks your application/workflow/build in 5%.
+为何如此？
+webpack 旨在注重构建安全而非性能。
+我们没有打算默认启用这一功能，主要原因在于此功能虽然有 95% 几率提升性能，但仍有 5% 的几率中断你的应用程序/工作流/构建。
 
-That sounds like it's really broken, but believe me it's not.
-But it requires an extra step by the developer to configure it correctly.
+这可能听起来很糟，但相信我它并非如此。
+只不过需要开发人员进行额外的操作来配置它。
 
-While serialization and deserialization would work out-of-the-box without extra steps by the developer, the part that may not work out-of-the-box is cache invalidation.
+序列化与反序列化功能具有无需配置的开箱即用体验，但开箱即用的部分可能致使缓存失效。
 
-What's cache invalidation?
-Webpack need to figure out when cache entries are no longer valid and stop using them for the build.
-So this happens when you change a file in you application.
+什么是缓存失效？
+webpack 需要确认 entry 的缓存何时会失效，并在失效时不再将其用于构建。
+因此，当你应用程序修改文件时，就会发生此情况。
 
-Example: You change `magic.js`.
-Webpack must invalidate the cache entry for `magic.js`.
-The build will process the file again, i. e. runs babel, typescript, whatever, parses the file and runs Code Generation again.
-Than Webpack probably also invalidates the cache entry for `bundle.js`,
-and the build will rebuild this file from the contained modules.
+示例：修改 `magic.js`。
+webpack 必须让 entry 为 `magic.js` 的缓存失效。
+构建将重新处理该文件，即运行 babel，typescript 诸如此类工具，重新解析文件并运行代码生成。
+webpack 可能还会致使 entry 为 `bundle.js` 的缓存失效。
+然后根据原模块重新构建此文件。
 
-For this Webpack tracks `fileDependencies` `contextDependencies` and `missingDependencies` for each Module, and creates a file system snapshot.
-This snapshot is compared with the real file system and when differences are detected a re-build is trigger for that module.
+为此，webpack 追踪了每个模块的 `fileDependencies` `contextDependencies` 以及 `missingDependencies`，并创建了文件系统快照。
+此快照会与真实文件系统进行比较，当检测到差异时，将触发对应模块的重新构建。
 
-The the cache entry of `bundle.js` webpack stores a `etag`, which is a hash of all contributors.
-This `etag` is compared and only when it matches the cache entry can be used.
+webpack 给 `bundle.js` 的缓存 entry 设置了一个 `etag`，它为所有贡献者的 hash 值。
+比较这个 `etag`，只有当它与缓存 entry 匹配时才能使用。
 
-All this was also required for in-memory caching in webpack 4.
-And all this work out-of-the-box from developer-view without extra configuration.
-For persistent caching in webpack 5 there is a new challange.
+webpack 4 中的内存缓存也依赖上述这些。
+从开发人员角度来说，这些都能够开箱即用，无需额外配置。
+但对于 webpack 5 的持久化缓存来说，却充满着挑战。
 
-Webpack also need to invalidate cache entries:
-* when you npm upgrade a loader or plugin
-* when you change your configuration
-* when you change a file that is read in the configuration
-* when you npm upgrade a dependencies that is used in the configuration
-* when you pass different command line arguments to your build script
-* when you have a custom build script and change that
+以下操作均会让 webpack 使 entry 缓存失效：
+* 当 npm 升级 loader 或 plugin 时
+* 当更改配置时
+* 当更改在配置中读取的文件时
+* 当 npm 升级配置中使用的 dependencies 时
+* 当不同命令行参数传递给 build 脚本时
+* 当有自定义构建脚本并进行更改时
 
-Here it becomes tricky.
-Webpack is not able to handle all these cases out-of-the-box.
-That's why we've chosen the safe way and made persistent caching an opt-in feature.
-We want you to learn how to enable persistent caching to give you the correct hints.
-We want you to know which configuration need to be used to handle i. e. your custom build script.
+这变得非常棘手。
+开箱即用的情况下，webpack 无法处理所有这些情况。
+这就是我们为什么选择安全的方式，并将持久化缓存变为可选特性的原因。
+我们希望读者可以学习如何启用持久化缓存，以为你提供正确的提示。
+我们希望你知道需要使用哪种配置来处理你自定义的构建脚本。
 
-# Build dependencies, version and name
+# 构建依赖（dependencies），缓存版本（version）和缓存名（name）
 
-To handle these "dependencies" of your build webpack provides three new tools:
+为了处理构建过程中的依赖关系，webpack 提供了三个新工具：
 
-## Build dependencies
+## 构建依赖（Build dependencies）
 
-These is a new configuration option `cache.buildDependencies`, which allows to specify code dependencies of the build process.
-To make it easier webpack takes care of the resolving and following of dependencies of specified values.
+此为全新的配置项 `cache.buildDependencies`，它可以指定构建过程中的代码依赖。
+为了使它更简易，webpack 负责解析并遵循配置值的依赖。
 
-There are two possible types of values: files and directories.
-Directories must end with a slash. Everything else is resolved as a file.
+值类型有两种：文件和目录。
+目录类型必须以斜杠（`/`）结尾。其他所有内容都解析为文件类型。
 
-For directories the nearest `package.json` is analysed for dependencies.
-For files we will look into the node.js module cache to find dependencies.
+对于目录类型来说，会解析其最近的 `package.json` 中的 dependencies。
+对于文件类型来说，我们将查看 node.js 模块缓存以寻找其依赖。
 
-Example: The build usually depends on the `lib` folder of `webpack` itself.
-You could specify it this way:
+示例：构建通常取决于 webpack 本身的 lib 文件夹：
+你可以这样配置：
 
 ``` js
 cache.buildDependencies: {
@@ -71,36 +71,36 @@ cache.buildDependencies: {
 }
 ```
 
-This invalidates the persistent cache when anything in `webpack/lib` or in dependencies of webpack like `watchpack`, `enhanced-resolved`, etc. changes.
-Coincidentally is this always a default value, so you don't have to specify it.
+当 `webpack/lib` 或 webpack 依赖的库（如，`watchpack`，`enhanced-resolved` 等）发生任何变化时，其缓存将失效。
+`webpack/lib` 已是默认值，默认情况下无需配置。
 
-Another example: The build usually also depends on your configuration file.
-You could specify it this way:
+另一个示例：构建依旧取决于你的配置文件。
+具体配置如下：
 
 ``` js
-cache.builddependencies: {
+cache.buildDependencies: {
     config: [__filename]
 }
 ```
 
-The `__filename` variable points to the current file in node.js.
+`__filename` 变量指向 node.js 中的当前文件。
 
-This invalidates the persistent cache when your config or anything the config depends on via `require()` changes.
-As your config probably references all used plugins via `require()` they also become build dependencies.
+当配置文件或配置文件中通过 `require` 依赖的任何内容发生更改时，也会使得持久化缓存失效。
+当配置文件通过 `require()` 引用了所有使用过的插件时，它们也会成为构建依赖项。
 
-If your configuration file read a file via `fs.readFile`, this would **not** become a build dependencies, as webpack only follows `require()`.
-You need to add such files to `buildDependencies` manually.
+如果配置文件通过 `fs.readFile` 读取文件，则将不会成为构建依赖项，因为 webpack 仅遵循 `require()`。
+你需要手动将此类文件添加到 `buildDependencies` 中。
 
-## Version
+## 缓存版本（Version）
 
-Some dependencies of your build can't be expressed as references to a file, i. e. values read from database, environment variables or values passed on command line.
-For these values there is a new configuration option `cache.version`.
+构建的某些依赖项不能单纯的依靠对文件的引用，如，从数据库读取的值，环境变量或命令行上传递的值。
+对于这些值，我们给出了新的配置项 `cache.version`。
 
-`cache.version` is a string. Passing a different string will invalidate the persistent cache.
+`cache.version` 类型为 string。传递不同的字符串将使持久化缓存失效。
 
-Example: Your config reads the environment variable `GIT_REV` and uses this value with the `DefinePlugin` to embed it into the bundle.
-This makes `GIT_REV` a dependency for your build.
-You could specify it this way:
+示例：你的配置中可能会读取环境变量中的 `GIT_REV` 并将其与 `DefinePlugin` 一起使用以将其嵌入到 bundle 中。
+这使得 `GIT_REV` 成为你构建的依赖项。
+具体配置如下：
 
 ``` js
 cache: {
@@ -108,17 +108,17 @@ cache: {
 }
 ```
 
-## Name
+## 缓存名（Name）
 
-In some cases dependencies toggle between multiple different values and invalidating the persistent cache for each value change would be wasteful.
-For these values there is a new configuration options `cache.name`.
+在某些情况下，依赖关系会在多个不同的值间切换，并且对于每个值更改都会使得持久化缓存失效，这显然是浪费资源的。
+对于这类值，我们给出了新的配置项 `cache.name`。
 
-`cache.name` is a string. Passing a value will create a separate independent persistent cache.
+`cache.name` 类型为 string。传递值将创建一个隔离且独立的持久化缓存。
 
-`cache.name` is used as filename of the persistent cache file. Make sure to only pass short and fs-safe names.
+`cache.name` 被用于对文件名进行持久化缓存。确保仅传递短小且 fs-safe 的名称。
 
-Example: Your config uses the `--env.target mobile|desktop` argument to creates builds for either mobile or desktop users.
-You could specify it this way:
+示例：你的配置可以使用 `--env.target mobile|desktop` 参数为移动端或 PC 用户创建不同的构建。
+具体配置如下：
 
 ``` js
 cache: {
@@ -126,52 +126,52 @@ cache: {
 }
 ```
 
-# Performance optimizations
+# 性能优化
 
-Hashing and timestamping a large part of node_modules for build and normal dependencies would be pretty expensive, and would slow down webpack a lot.
-To avoid this webpack includes a performance optimization that skips over files in `node_modules` by default and uses the `version` and `name` in `package.json`s as source of truth.
+对大部分 node_modules 进行哈希处理并加盖时间戳以生存构建和常规依赖项，其代价非常昂贵，并且还会大大降低 webpack 的执行速度。
+为避免这种情况出现，webpack 引入了相关的性能优化，默认情况下会跳过 `node_modules`，并使用 `package.json` 中的 `version` 和 `name` 作为数据源。
 
-This optimization will be used for all paths in the configuration option `cache.managedPaths`.
-It defaults to the `node_modules` directory in which webpack is installed.
+此优化将用于配置项 `cache.managedPaths` 中的所有 path。
+它默认为 webpack 安装了 `node_modules` 目录。
 
-**Do not edit `node_modules` by hand** when this optimization is enabled.
-You can disable it with `cache.managedPaths: []`.
+启用此优化后，**请勿手动编辑 `node_modules`**。
+你可以使用 `cache.managedPaths: []` 禁用它。
 
-When using Yarn PnP another optimization kicks in.
-All files in the yarn cache are skipped for hashing and timestamping at all (not even `version` and `name` is tracked), as the cache content is immutable.
+当使用 Yarn PnP 时，将启用另一个优化。
+由于缓存内容不可变，yarn 缓存中的所有文件都将完全跳过哈希和时间戳的操作（甚至不会追踪 `version` 和 `name`）。
 
-This is controlled by the configuration option `cache.immutablePaths`.
-It defaults to the yarn cache in which webpack is installed when Yarn PnP is enabled.
+此操作由配置项 `cache.immutablePaths` 控制。
+启用 Yarn PnP 时，默认为安装了 webpack 的 yarn 缓存。
 
-We could tell you to not edit the yarn cache by hand, but this is a no-go anyway.
+不要手动编辑 yarn 缓存，因为这根本不可行。
 
-# Use the persistent cache
+# 使用持久化缓存
 
-Make sure you have read and understood the information above!
+确保你已阅读并理解以上信息！
 
-Here is a typical config to enable the persistent cache:
+此为启用持久化缓存的典型配置：
 
 ``` js
 cache: {
     type: "filesystem",
     buildDependencies: {
-        config: [ __filename ] // you may omit this when your CLI automatically adds it
+        config: [ __filename ] // 当你 CLI 自动添加它时，你可以忽略它
     }
 }
 ```
 
 ## Watching
 
-The persistent cache can be used for single builds and for continuous building (watch).
+持久化缓存可用于单独构建和连续构建（watch）。
 
-When setting `cache.type: "filesystem"` webpack internally enables the filesystem cache and the memory cache in a layered way.
-Reading from cache will look into the memory cache first and fallback to filesystem cache.
-Writing to cache will write to both caches.
+当设置 `cache.type: "filesystem"` 时，webpack 会在内部以分层方式启用文件系统缓存和内存缓存。
+从缓存读取时，会先查看内存缓存，如果内存缓存未找到，则降级到文件系统缓存。
+写入缓存将同时写入内存缓存和文件系统缓存。
 
-The filesystem cache won't directly serialize write requests to disk. It will wait until the compilation process has finished and the compiler is idling.
-This happens because serialization and disk writing uses up resources and we don't want to additionally delay the compilation process.
+文件系统缓存不会直接将对磁盘写入的请求进行序列化。它将等到编译过程完成且编译器处于空闲状态才会执行。
+如此处理的原因是序列化和磁盘写入会占用资源，并且我们不想额外延迟编译过程。
 
-For single builds the workflow is:
+针对单一构建，其工作流为：
 
 * Loading cache
 * Building
@@ -180,7 +180,7 @@ For single builds the workflow is:
 * Persisting cache (if changed)
 * Process exits
 
-For continuous builds (watch) the workflow is:
+针对连续构建（watch），其工作流为：
 
 * Loading cache
 * Building
@@ -196,41 +196,41 @@ For continuous builds (watch) the workflow is:
   * Wait `cache.idleTimeout`
   * Persisting cache (if changed)
 
-You see the two new configuration options `cache.idleTimeout` and `cache.idleTimeoutForInitialStore` which control how long the compiler has to idle before cache is persisted.
-`cache.idleTimeout` defaults to 60s and `cache.idleTimeoutForInitialStore` defaults to 0s.
-As serialization blocks the event loop, no cache is detected while cache is serialized.
-The delay tries to avoid recompilation delay in watch mode due to fast paced editing of files, while trying to keep the persistent cache fresh for the next cold start.
-It's a trade-off, feel free to choose a value that fits your workflow. Smaller values shorten cold startup time and increase risk of delayed rebuilds. Bigger values can increase cold startup time and reduce the risk of delayed rebuilds.
+你会发现两个新的配置项 `cache.idleTimeout` 和 `cache.idleTimeoutForInitialStore`，它们控制着持久化缓存之前编译器必须空闲的时长。
+`cache.idleTimeout` 默认为 60s，`cache.idleTimeoutForInitialStore` 默认为 0s。
+由于序列化阻止了事件循环，因此在序列化缓存时不进行缓存检测。
+此延迟尝试避免由于快速编辑文件，而在 watch 模式下导致重新编译造成的延迟，同时尝试为下一次冷启动保持持久化缓存的最新状态。
+这是一个折中的解决方案，可以设置适合你工作流的值。较小的值会缩短冷启动时间，但会增加延迟重新构建的风险。
 
-## Error handling
+## 错误处理
 
-The persistent cache recovers from any error by either dropping the whole cache and doing a fresh build or by omitting the offending cache entry and leaving this item uncached.
+发生错误要恢复持久化缓存的方式，可以通过删除整个缓存并进行全新的构建，或者通过删除有问题的缓存 entry 并使得该项目保持未缓存状态来进行。
 
-Warnings will be emitted in such cases with the webpack infrastructure logger.
-See `infrastructureLogging` configuration option for details.
+在这种情况下，webpack 的 logger 会发出警告。
+欲了解更多，请参阅 `infrastructureLogging` 的配置项。
 
 ---
 
 # Details
 
-The following information is not needed for normal usage.
+正常使用不需要以下信息。
 
-## Guideline for higher-level tools using webpack
+## 使用 webpack 的高级工具指南
 
-A tool that wraps webpack may choose different defaults.
-When it doesn't allow to use a custom config to extend webpack, it could switch the persistent cache on by default as it has full control over all build dependencies.
+封装 webpack 的工具可以选择其他默认值。
+当不允许使用自定义扩展的 webpack 时，由于可以完全控制所有构建的依赖项，因此可以默认打开持久化存储。
 
-## Guideline for CLIs
+## CLI 指南
 
-A CLI using webpack could add some build dependencies by default, which is not possible for the webpack itself.
+默认情况下，使用 webpack 的 CLI 可能会添加一些构建依赖关系，而 webpack 本身不会。
 
-* It should set `cache.buildDependencies.defaultConfig` to the used config file by default.
-* It should append the command line arguments to `cache.version`
-* It may add a note to `cache.name` when command line arguments are used
+* 默认情况下，CLI 会将 `cache.buildDependencies.defaultConfig` 设置为所用的配置文件
+* CLI 会将命令行参数附加到 `cache.version`
+* 使用命令行参数时，CLI 可能会在 `cache.name` 中添加注释。
 
-## Debug information
+## 调试信息
 
-With the following config additional debug information will be emitted:
+使用如下配置，将输出额外的调试信息：
 
 ``` js
 infrastructureLogging: {
@@ -238,64 +238,64 @@ infrastructureLogging: {
 }
 ```
 
-## Internal workflow
+## 内部工作流
 
-* webpack read the cache file.
-  * There is no cache file -> build without cache
-  * `version` in the cache file doesn't match the `cache.version` -> build without cache
-* webpack compares the `resolve snapshot` with the filesystem
-  * It does match -> continue below
-  * It doesn't match:
-    * Resolve all `resolve results` again
-      * It doesn't match -> build without cache
-      * It does match -> continue below
-* webpack compares the `build dependencies snapshot` with the filesystem
-  * It doesn't match -> build without cache
-  * It does match -> continue below
-* cache entries are deserialized (big cache entries are deserialized lazy during the build)
-* build runs (with or without cache)
-  * build dependencies are tracked
-    * from `cache.buildDependencies`
-    * from used loaders
-* new build dependencies are resolved
-  * resolve dependencies are tracked
-  * resolve results are tracked
-* a snapshot from all new resolve dependencies is created
-* a snapshot from all new build dependencies is created
-* persistent cache file is serialized to disk
+* webpack 读取缓存文件。
+  * 没有缓存文件 -> 没有构建缓存
+  * 缓存文件中的 `version` 与 `cache.version` 不匹配 -> 没有构建缓存
+* webpack 将解析快照（`resolve snapshot`）与文件系统进行对比
+  * 匹配到 -> 继续后续流程
+  * 没有匹配到：
+    * 再次解析所有解析结果（`resolve results`）
+      * 没有匹配到 -> 没有构建缓存
+      * 匹配到 -> 继续后续流程
+* webpack 将构建依赖快照（`build dependencies snapshot`）与文件系统进行对比
+  * 没有匹配到 -> 没有构建缓存
+  * 匹配到 -> 继续后续流程
+* 对缓存 entry 进行反序列化（在构建过程中对较大的缓存 entry 进行延迟反序列化）
+* 构建运行（有缓存或没有缓存）
+  * 追踪构建依赖关系
+    * 追踪 `cache.buildDependencies`
+    * 追踪已使用的 loader
+* 新的构建依赖关系已解析完成
+  * 解析依赖关系已追踪
+  * 解析结果已追踪
+* 创建来自所有新解析依赖项的快照
+* 创建来自所有新构建依赖项的快照
+* 持久化缓存文件序列化到磁盘
 
-## Serialization
+## 序列化
 
-All classes that should support serialization need to have a serializer registered:
+所有支持序列化的 class 都需要注册一个序列化器：
 
 ``` js
 webpack.util.serialization.register(Constructor, request, name, serializer);
 ```
 
-`Constructor` should be a class or constructor function.
-For any object that should be serialized `object.constructor` will be used to find a serializer.
+`Constructor` 应为一个 class 或构造器函数。
+对于任何需要序列化的对象的 `object.constructor` 将被用于查找序列化器（serializer）。
 
-`request` will be used to load the module that calls `register`.
-It should point to the current module.
-It will be used this way: `require(request)`.
+`request` 将被用于加载调用 `register` 模块。
+它应指向当前模块。
+它将以这种方式使用：`require(request)`。
 
-`name` is used to differ multiple `register` calls with the same `request`.
+`name` 被用于区分具有相同 `request` 的多个 `register` 调用。
 
-`serializer` is an object with at least two methods `serialize` and `deserialize`.
+`serializer` 是至少拥有 `serialize` 和 `deserialize` 两个方法的对象。
 
-`serializer.serialize(object, context)` is called when an object should be serialized.
-`context` is an object that contains at least a `write(anything)` method.
-This method write something into the output stream.
-The passed value will be serialized too.
+当需序列化对象时，请调用 `serializer.serialize(object, context)`。
+`context` 是至少拥有一个 `write(anything)` 方法的对象
+此方法将内容写入输出流。
+传递的值也会被序列化。
 
-`serializer.deserialize(context)` is called when an serialized object should be deserialized.
-`context` is an object that contains at least a `read(): anything` method.
-This methods deserializes something from the input stream.
-`deserialize` must return the deserialized object.
+当需要反序列化对象时，请调用 `serializer.deserialize(context)`。
+`context` 是至少拥有一个 `read(): anything` 方法的对象。
+此方法会反序列化输入流中的某些内容。
+`deserialize` 必须返回反序列化后的对象。
 
-`serialize` and `deserialize` should read and write the same objects in the same order.
+`serialize` 和 `deserialize` 应以相同的顺序读取和写入相同的对象。
 
-Example:
+示例：
 
 ``` js
 // some-module/lib/MyClass.js
@@ -321,4 +321,4 @@ register(MyClass, "some-module/lib/MyClass", null, {
 });
 ```
 
-You can expect serializer for primitive types and basic javascript classes to be already registered, i. e. string, number, Array, Set, Map, RegExp, plain objects, Error.
+基本数据类型和引用数据类型的序列化器都已被注册，即 string，number，Array，Set，Map，RegExp，plain objects，Error。
