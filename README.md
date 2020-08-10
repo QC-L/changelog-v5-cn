@@ -24,9 +24,23 @@ v4 中所有废弃的代码均已删除。
 
 以下是已删除但在 v4 中没有弃用警告的内容：
 
-- 现在必须为 IgnorePlugin 和 BannerPlugin 传递一个 options 对象。
+- 现在必须为 IgnorePlugin 和 BannerPlugin 传递一个参数，参数的类型可以是 object，string 或 function。
 
-## 自动移除 Node.js Polyfills
+## 弃用代码
+
+新的弃用包含弃用代码，因此更易于引用。
+
+(自 beta.7 起)
+
+## 语法弃用
+
+`require.include` 已被弃用，使用时默认发出警告。
+
+可以使用 `Rule.parser.requireInclude` 将行为改为 允许，不建议使用或禁用。
+
+(自 beta.1 起)
+
+## 自动移除 Node.js Polyfill
 
 早期，webpack 的目的是允许在浏览器中运行大多数 node.js 模块，但是模块整体格局发生了变化，现在许多模块的主要用途是以编写前端为目的。webpack <= 4 附带了许多 Node.js 核心模块的 polyfil，一旦模块中使用了任何核心模块（即 ”crypto“ 模块），这些模块就会被自动启用。
 
@@ -40,8 +54,6 @@ webpack 5 会停止自动 polyfill 这些核心模块，并专注于与前端兼
 - 可以为 Node.js 核心模块手动添加 polyfill。错误信息将提示如何进行此操作。
 - package 作者：在 `package.json` 中使用 `browser` 字段，以使得 package 与前端代码兼容。为 borwser 提供可选的 implementations/dependencies。
 
-**反馈**：无论是否喜欢上述修改，请都向我们提出反馈。我们并不确定是否会纳入最终版本。
-
 ## 采用新算法生成 chunk ID 以及 module ID
 
 添加了用于长效缓存的新算法。在生产模式下，默认启用这些功能。
@@ -51,7 +63,13 @@ webpack 5 会停止自动 polyfill 这些核心模块，并专注于与前端兼
 此算法采用确定性的方式将短数字 ID（3 或 4 个字符）分配给 modules 和 chunks。
 这是基于 bundle 大小和长效缓存间的折中方案。
 
+使用 `moduleIds/chunkIds: false` 禁用默认行为，并通过插件提供自定义算法。请注意，在 webpack 4 中没有自定义插件，但使用了 `moduleIds/chunkIds: false` 会正常构建，而在 webpack 5 中，你必须提供自定义插件。
+
 **迁移**：最好使用 `chunkIds` 和 `moduleIds` 的默认值。你还可以选择使用旧的默认值，`chunkIds: "size", modules: "size"`，这将生成较小的 bundle，但这会使得它们频繁地进行缓存。
+
+注意：在 webpack 4 中 hash 的模块 ID 会导致 gzip 性能降低。这与变化的模块顺序有关，且已修复（自 beta.1 起）
+
+注意：在 webpack 5 中，`deterministic` 的 id 在生产模式下默认启用。
 
 ## 以新算法混淆 export 名称
 
@@ -82,6 +100,12 @@ JSON 模块现在符合规范，并会在使用非默认导出时发出警告。
 
 （自 alpha.16 起）
 
+设置 `optimization.usedExports` 选项会把未使用的属性丢弃，而设置 `optimization.mangleExports` 会对属性进行优化处理（自 beta.3 起）
+
+当从字符串 ECMAScript 模块引入时，JSON 模块不再支持命名导出。（自 beta.7 起）
+
+可以在 `Rule.parser.parse` 中指定自定义 JSON 解析器，以导入类似 JSON 的文件（例如，toml，yaml，json5等）。（自 beta.8 起）
+
 ## 嵌套 tree-shaking
 
 webpack 现在可以追踪对 exports 嵌套属性的访问。重新导出 namespace 对象，这可以改善 Tree Shaking 操作（未使用 export elimination 和 export mangling）。
@@ -100,7 +124,7 @@ import * as module from "./module";
 console.log(module.inner.a);
 ```
 
-在此示例中，可以在生成模式下移除 export `b`。
+在此示例中，可以在生产模式下移除 export `b`。
 
 （从 alpha.15 起）
 
@@ -144,6 +168,30 @@ export function test() {
 
 （自 alpha.24 起）
 
+Using `eval()` will bail-out this optimization for a module, because evaled code could reference any symbol in scope.
+
+(since beta.10)
+
+## CommonJS Tree Shaking
+
+webpack 使用其进行选择性导出，以分析 CommonJS 的出口和 `require()` 的调用。
+
+webpack 5 增加了对某些 CommonJS 构造形式的支持，允许消除未使用的 CommonJS 导出，并从 `require()` 调用中跟踪引用的导出名称。
+
+支持以下构造形式：
+
+- `exports|this|module.exports.xxx = ...`
+- `Object.defineProperty(exports|this|module.exports, "xxx", ...)`
+- `require("abc").xxx`
+- `require("abc").xxx()`
+- importing from ESM
+- `require()` a ESM
+- flagged exportType (special handling for non-strict ESM import):
+  - `Object.defineProperty(exports|this|module.exports, "__esModule", { value: true|!0 })`
+  - `exports|this|module.exports.__esModule = true|!0`
+
+（自 beta.9 起）
+
 ## 编译器空闲并关闭（idle and close）
 
 现在需要再使用编译器（compilers）后将其关闭。编译器具有 enter 和 leave 空闲状态，并具有这些状态的 hook。插件可以使用这些 hook 执行不重要的工作。（即，持久化缓存将延迟存储到磁盘）。在编译器关闭时，所有剩余工作应尽快完成。回调执行时，表明关闭已完成。
@@ -158,7 +206,9 @@ export function test() {
 
 此版本添加了新的选项 `output.ecmaVersion`。它允许为 webpack 生成的运行时代码指定最大 EcmaScript 版本。
 
-webpack 4 仅能于生成 ES5 的代码。webpack 5 现支持 ES5 或 ES2015 的代码。
+webpack 4 仅能于生成 ES5 的代码。
+
+webpack 5 现支持 ES5 或 ES2015 的代码。
 
 默认配置将生成 ES2015 的代码。如果你需要支持旧版浏览器（例如，IE11），则可以将其降为 `output.ecmaVersion: 5`。
 
@@ -177,8 +227,8 @@ webpack 4 仅能于生成 ES5 的代码。webpack 5 现支持 ES5 或 ES2015 的
 
 ```js
 minSize: {
-	javascript: 30000,
-	style: 50000,
+  javascript: 30000,
+  style: 50000,
 }
 ```
 
@@ -214,6 +264,36 @@ cache: {
 当使用 Yarn PnP webpack 时，如果 yarn 的缓存不可变（通常不会发生变化）。你可以通过 `cache.immutablePaths: []` 退出此优化。
 
 （自 alpha.21 起）
+
+`SourceMapDevToolPlugin` uses the Persistent Cache.
+
+(since beta.4)
+
+`ConcatenatedModule` used the Persistent Cache.
+
+(since beta.10)
+
+`ProgressPlugin` used the Persistent Cache.
+
+(since beta.14)
+
+## File Emitting
+
+webpack used to always emit all output files during the first build but skipped writing unchanged files during incremental (watch) builds.
+It is assumed that nothing else changes output files while webpack is running.
+
+With Persistent Caching added a watch-like experience should be given even when restarting the webpack process, but it would be a too strong assumption to think that nothing else changes the output directory even when webpack is not running.
+
+So webpack will now check existing files in the output directory and compares their content with the output file in memory. It will only write the file when it has been changed.
+This is only done on the first build. Any incremental build will always write the file when a new asset has been generated in the running webpack process.
+
+We assume that webpack and plugins only generate new assets when content has been changed. Caching should be used to ensure that no new asset is generated when input is equal.
+Not following this advice will degrade performance.
+
+Files that are flagged as `immutable` (including a content hash), will never be written when a file with the same name already exists.
+We assume that the content hash will change when file content changes. This is true in general, but might not be always true during webpack or plugin development.
+
+(since beta.3)
 
 ## 用于 single-file-target 的 chunk 分割
 
@@ -291,9 +371,38 @@ chunks 和 assets 会显示 chunk id 的提示。
 
 （自 alpha.31 起）
 
+## Progress
+
+A few improvements have been done to the `ProgressPlugin` which is used for `--progress` by the CLI, but can also be used manually as plugin.
+
+It used to only count the processed modules. Now it can count `entries` `dependencies` and `modules`.
+All of them are shown by default now.
+
+It used to disable the currently processed module. This caused much process stderr output and yielded a performance problem on some consoles.
+This is now disabled by default (`activeModules` option). This also reduces the amount of spam on the console. (since alpha.31)
+
+Now writing to stderr is throttled to 500ms.
+
+(since beta.4)
+
+The profiling mode also got an upgrade and will display timings of nested progress messages.
+This makes it easier to figure out while plugin is causing performance problems.
+
+(since beta.10)
+
+Added `percentBy`-option that tells `ProgressPlugin` how to calculate progress percentage.
+
+```js
+new webpack.ProgressPlugin({ percentBy: "entries" });
+```
+
+To make progress percentage more accurate `ProgressPlugin` caches the last known total modules count and reuses this value on the next build. The first build will warm the cache but the following builds will use and update this value.
+
+(since beta.14)
+
 ## 最低 Node.js 版本
 
-Node.js 的最低支持版本从 6 变更为 8。
+Node.js 的最低支持版本从 6 变更为 10.13.0（LTS）。
 
 **迁移**：升级到最新的 node.js 可用版本。
 
@@ -322,10 +431,11 @@ Node.js 的最低支持版本从 6 变更为 8。
   - 移除 `node.console`
   - 移除 `node.process`
   - 移除 `node.*`（node.js 原生模块）
-  - 迁移：使用 `resolve.alias` 和 `ProvidePlugin`。发生错误会给出提示。
+  - 迁移：使用 `resolve.alias` 和 `ProvidePlugin`。发生错误会给出提示。Errors will give hints. (Refer to [node-libs-browser](https://github.com/webpack/node-libs-browser) for polyfills & mocks used in v4)
 - `output.filename` 可以赋值函数（自 alpha.17 起）
 - 添加 `output.assetModuleFilename`（自 alpha.19 起）
-- `resolve.alias` 的值可以为数组或 `false`（自 alpha.18起）
+- `devtool` 更严格（自 beta.1 起）
+  - 格式：`false | eval | [inline-|hidden-|eval-][nosources-][cheap-[module-]]source-map`
 - 添加 `optimization.chunkIds: "deterministic"`
 - 添加 `optimization.moduleIds: "deterministic"`
 - 添加 `optimization.moduleIds: "hashed"`
@@ -361,6 +471,8 @@ Node.js 的最低支持版本从 6 变更为 8。
 - `output.hotUpdateMainFilename: Function` 现在被禁止：不会生效。
 - `module.rules` 中的 `resolve` 和 `parser` 将以不同的方式合并（对象会进行深度合并，数组将采用 `"..."` 进行展开以获取之前的值）（自 alpha.13 起）
 - `module.rules` 中的 `query` 和 `loaders` 已被移除（自 alpha.13 起）
+- `module.rules` `options` 不在支持传递字符串 （自 beta.10 起）
+  - **迁移**：将使用传递对象的方式替代，如果不支持，则需为 loader 发起一个 issues
 - 添加 `stats.chunkRootModules`：展示 chunk 的根模块
 - 添加 `stats.orphanModules`：展示未触发的模块。
 - 添加 `stats.runtime`：展示 runtime 模块
@@ -403,18 +515,19 @@ Node.js 的最低支持版本从 6 变更为 8。
 - ~`node.global` 默认为 `false`~（自 alpha.4 起被移除）
 - `resolveLoader.extensions` 移除 `.json`（自 alpha.8 起）
 - 当 node-`target` 时，`node.global` 中的 `node.__filename` 和 `node.__dirname` 默认为 `false`（自 alpha.14 起）
+- `stats.errorStack` 默认为 `false`（自 beta.1 起）
 
 # Major Internal Changes
 
-The following changes are only relavant for plugin authors:
+The following changes are only relevant for plugin authors:
 
 ## Runtime Modules
 
-A large part of the runtime code was moved into the so called "runtime modules". These special modules are in-charge of adding runtime code. They can be added in to any chunk, but are currently always added to the runtime chunk. "Runtime Requirements" control which runtime modules (or core runtime parts) are added to the bundle. This ensures that only runtime code that is used is added to the bundle. In the future, runtime modules could also added to an on-demand-loaded chunk, to load runtime code when needed.
+A large part of the runtime code was moved into the so-called "runtime modules". These special modules are in-charge of adding runtime code. They can be added into any chunk, but are currently always added to the runtime chunk. "Runtime Requirements" control which runtime modules (or core runtime parts) are added to the bundle. This ensures that only runtime code that is used is added to the bundle. In the future, runtime modules could also be added to an on-demand-loaded chunk, to load runtime code when needed.
 
-In most cases the core runtime allows to inline the entry module instead of calling it with `__webpack_require__`. If there is no other module in the bundle, no `__webpack_require__` is needed at all. This combines well with Module Concatenation where multiple modules are concatenated into a single module.
+In most cases, the core runtime allows to inline the entry module instead of calling it with `__webpack_require__`. If there is no other module in the bundle, no `__webpack_require__` is needed at all. This combines well with Module Concatenation where multiple modules are concatenated into a single module.
 
-In the best case no runtime code is needed at all.
+In the best case, no runtime code is needed at all.
 
 MIGRATION: If you are injecting runtime code into the webpack runtime in a plugin, consider using RuntimeModules instead.
 
@@ -428,7 +541,7 @@ MIGRATION: When using custom Modules or Dependencies, it is recommended to make 
 
 ## Extensible Caching
 
-A `Cache` class with a plugin interface has been added. This class can be used to write and read to the cache. Depending on configuration, different plugins can add the functionality to the cache. The `MemoryCachePlugin` adds in-memory caching. The `FileCachePlugin` adds persistent (file-system) caching.
+A `Cache` class with a plugin interface has been added. This class can be used to write and read to the cache. Depending on the configuration, different plugins can add functionality to the cache. The `MemoryCachePlugin` adds in-memory caching. The `FileCachePlugin` adds persistent (file-system) caching.
 
 The `FileCachePlugin` uses the serialization mechanism to persist and restore cached items to/from the disk.
 
@@ -456,19 +569,64 @@ MIGRATION: Hook into the remaining hook instead. You may add a `stage` option.
 
 Bundle templating has been refactored. MainTemplate/ChunkTemplate/ModuleTemplate were deprecated and the JavascriptModulesPlugin takes care of JS templating now.
 
-Before that refactoring JS output was handled by Main/ChunkTemplate while other output (i. e. WASM, CSS) was handled by plugins. This looks like JS is first class, while other output is second class. The refactoring changes that and all output is handled by their plugins.
+Before that refactoring, JS output was handled by Main/ChunkTemplate while another output (i. e. WASM, CSS) was handled by plugins. This looks like JS is first class, while another output is second class. The refactoring changes that and all output is handled by their plugins.
 
 It's still possible to hook into parts of the templating. The hooks are in JavascriptModulesPlugin instead of Main/ChunkTemplate now. (Yes plugins can have hooks too. I call them attached hooks.)
 
 There is a compat-layer, so Main/Chunk/ModuleTemplate still exist, but only delegate tap calls to the new hook locations.
 
-MIGRATION: Follow the advises in the deprecation messages. Mostly pointing to hooks at different locations.
+MIGRATION: Follow the advice in the deprecation messages. Mostly pointing to hooks at different locations.
 
 (since alpha.31)
 
+## Entry point descriptor
+
+If an object is passed as entry point the value might be a string, array of strings or a descriptor:
+
+```js
+module.exports = {
+  entry: {
+    catalog: { 
+      import: './catalog.js', 
+    }
+  }
+};
+```
+
+Descriptor syntax might be used to pass additional options to an entry point.
+
+### Entry point output filename
+
+By default, the output filename for the entry chunk is extracted from `output.filename` but you can specify a custom output filename for a specific entry:
+
+```js
+module.exports = {
+  entry: {
+    about: { import: './about.js', filename: 'pages/[name][ext]' }
+  }
+};
+```
+
+### Entry point dependency
+
+By default, every entry chunk stores all the modules that it uses. With `dependOn`-option you can share the modules from one entry chunk to another:
+
+```js
+module.exports = {
+  entry: {
+    app: { import: './app.js', dependOn: 'react-vendors' },
+    'react-vendors': ['react', 'react-dom', 'prop-types']
+  }
+};
+```
+
+The app chunk will not contain the modules that `react-vendors` has.
+
+(since beta.14)
+
 ## Order and IDs
 
-webpack used to order modules and chunks in the Compilation phase, in a specific way, to assign IDs in an incremental order. This is no longer the case. The order will no longer be used for id generation, instead, the full control of ID generation is in the plugin.
+webpack used to order modules and chunks in the Compilation phase, in a specific way, to assign IDs in incremental order. This is no longer the case. The order will no longer be used for id generation, instead, the full control of ID generation is in the plugin.
 
 Hooks to optimize the order of module and chunks have been removed.
 
@@ -486,17 +644,19 @@ MIGRATION: Use Set methods instead of Array methods.
 
 ## Compilation.fileSystemInfo
 
-This new class can be used to access information about the filesystem in a cached way. Currently it allows to ask for both file and directory timestamps. Information about timestamps is transferred from the watcher if possible, otherwise determined by filesystem access.
+This new class can be used to access information about the filesystem in a cached way. Currently, it allows asking for both file and directory timestamps. Information about timestamps is transferred from the watcher if possible, otherwise determined by filesystem access.
 
 In the future, asking for file content hashes will be added and modules will be able to check validity with file contents instead of file hashes.
 
 MIGRATION: Instead of using `file/contextTimestamps` use the `compilation.fileSystemInfo` API instead.
 
-(since alpha.24) Timestamping for directories is possible now, which allows serialization of ContextModules
+Timestamping for directories is possible now, which allows serialization of ContextModules. (since alpha.24)
+
+`Compiler.modifiedFiles` has been added (next to `Compiler.removedFiles`) to make it easier to reference the changed files. (since beta.7)
 
 ## Filesystems
 
-Next to `compiler.inputFileSystem` and `compiler.outputFileSystem` there is a new `compiler.intermediateFileSystem` for all fs actions that are not considers as input or output, like writing records, cache or profiling output.
+Next to `compiler.inputFileSystem` and `compiler.outputFileSystem` there is a new `compiler.intermediateFileSystem` for all fs actions that are not considered as input or output, like writing records, cache or profiling output.
 
 The filesystems have now the `fs` interface and do no longer demand additional methods like `join` or `mkdirp`. But if they have methods like `join` or `dirname` they are used.
 
@@ -504,11 +664,11 @@ The filesystems have now the `fs` interface and do no longer demand additional m
 
 ## Hot Module Replacement
 
-HMR runtime has be refactored to Runtime Modules. `HotUpdateChunkTemplate` has been merged into `ChunkTemplate`. ChunkTemplates and plugins should also handle `HotUpdateChunk`s now.
+HMR runtime has been refactored to Runtime Modules. `HotUpdateChunkTemplate` has been merged into `ChunkTemplate`. ChunkTemplates and plugins should also handle `HotUpdateChunk`s now.
 
 The javascript part of HMR runtime has been separated from the core HMR runtime. Other module types can now also handle HMR in their own way. In the future, this will allow i. e. HMR for the mini-css-extract-plugin or for WASM modules.
 
-MIGRATION: As this is a newly intorduced functionality, there is nothing to migrate.
+MIGRATION: As this is a newly introduced functionality, there is nothing to migrate.
 
 ## Work Queues
 
@@ -516,7 +676,7 @@ webpack used to handle module processing by functions calling functions, and a `
 
 - `Compilation.factorizeQueue`: calling the module factory for a group of dependencies.
 - `Compilation.addModuleQueue`: adding the module to the compilation queue (may restore module from cache).
-- `Compilation.buildQueue`: building the module if neccessary (may stores module to cache).
+- `Compilation.buildQueue`: building the module if necessary (may stores module to cache).
 - `Compilation.rebuildQueue`: building a module again if manually triggered.
 - `Compilation.processDependenciesQueue`: processing dependencies of a module.
 
@@ -524,11 +684,18 @@ These queues have some hooks to watch and intercept job processing.
 
 In the future, multiple compilers may work together and job orchestration can be done by intercepting these queues.
 
-MIGRATION: As this is a newly intorduced functionality, there is nothing to migrate.
+MIGRATION: As this is a newly introduced functionality, there is nothing to migrate.
+
+## Logging
+
+webpack internals includes some logging now.
+`stats.logging` and `infrastructureLogging` options can be used to enabled these messages.
+
+(since beta.3)
 
 ## Module and Chunk Graph
 
-webpack used to store a resolved module in the dependency, and store the contained modules in the chunk. This is no longer the case. All information about how modules are connected in the module graph are now stored in a ModuleGraph class. All information about how modules are connected with chunks are now stored in the ChunkGraph class. Information which depends on i. e. the chunk graph, is also stored in the related class.
+webpack used to store a resolved module in the dependency, and store the contained modules in the chunk. This is no longer the case. All information about how modules are connected in the module graph are now stored in a ModuleGraph class. All information about how modules are connected with chunks are now stored in the ChunkGraph class. The information which depends on i. e. the chunk graph, is also stored in the related class.
 
 That means the following information about modules has been moved:
 
@@ -549,7 +716,7 @@ That means the following information about modules has been moved:
 - Module is runtime module in chunk -> ChunkGraph
 - Chunk runtime requirements -> ChunkGraph
 
-webpack used to disconnect modules from the graph when restored from cache. This is no longer necessary. A Module stores no info about the graph and can technically used in multiple graphs. This makes caching easier.
+webpack used to disconnect modules from the graph when restored from the cache. This is no longer necessary. A Module stores no info about the graph and can technically be used in multiple graphs. This makes caching easier.
 
 There is a compat-layer for most of these changes, which prints a deprecation warning when used.
 
@@ -579,7 +746,7 @@ MIGRATION: Instead of replacing the whole Stats functionality, you can now custo
 
 The watcher used by webpack was refactored. It was previously using `chokidar` and the native dependency `fsevents` (only on OSX). Now it's only based on native node.js `fs`. This means there is no native dependency left in webpack.
 
-It also captures more information about the filesystem while watching. It now captures mtimes and watch event times, as well as information about missing files. For this the `WatchFileSystem` API changed a little bit. While on it we also converted Arrays to Sets and Objects to Maps.
+It also captures more information about filesystem while watching. It now captures mtimes and watches event times, as well as information about missing files. For this, the `WatchFileSystem` API changed a little bit. While on it we also converted Arrays to Sets and Objects to Maps.
 
 (since alpha.5)
 
@@ -589,16 +756,25 @@ webpack now replaces the Sources in `Compilation.assets` with `SizeOnlySource` v
 
 (since alpha.8)
 
+## Emitting assets multiple times
+
+The warning `Multiple assets emit different content to the same filename` has been made an error.
+
+(since beta.7)
+
 ## ExportsInfo
 
-The way how information about exports of modules are stored has been refactored. The ModuleGraph now features a `ExportsInfo` for each `Module`, which stores information per export. It also stores information about unknown exports and if the module is used in side-effect-only way.
+The way how information about exports of modules is stored has been refactored. The ModuleGraph now features an `ExportsInfo` for each `Module`, which stores information per export. It also stores information about unknown exports and if the module is used in a side-effect-only way.
 
 For each export the following information is stored:
 
-* Is the export used? yes, no, not statically known, not determined. (see also `optimization.usedExports`)
-* Is the export provided? yes, no, not statically known, not determined. (see also `optimization.providedExports`)
-* Can be export name be renamed? yes, no, not determined.
-* The new name, if the export has been renamed. (see also `optimization.mangleExports`)
+- Is the export used? yes, no, not statically known, not determined. (see also `optimization.usedExports`)
+- Is the export provided? yes, no, not statically known, not determined. (see also `optimization.providedExports`)
+- Can be export name be renamed? yes, no, not determined.
+- The new name, if the export has been renamed. (see also `optimization.mangleExports`)
+- Nested ExportsInfo, if the export is an object with information attached itself
+  - Used for reexporting namespace objects: `import * as X from "..."; export { X };`
+  - Used for representing structure in JSON modules (since beta.3)
 
 (since alpha.10)
 
@@ -618,32 +794,77 @@ webpack detects when ASI happens and generates shorter code when no semicolons a
 
 webpack merges multiple export getters into a single runtime function call: `r.d(x, "a", () => a); r.d(x, "b", () => b);` -> `r.d(x, {a: () => a, b: () => b});` (since alpha.22)
 
+## DependencyReference
+
+webpack used to have a single method and type to represent references of dependencies (`Compilation.getDependencyReference` returning a `DependencyReference`).
+This type used to include all information about this reference like the referenced Module, which exports have been imported, if it's a weak reference and also some ordering related information.
+
+Bundling all these information together makes getting the reference expensive and it's also called very often every time somebody needs one piece of information.
+
+In webpack 5 this part of the codebase was refactored and the method has been split up.
+
+- The referenced module can be read from the ModuleGraphConnection
+- The imported export names can be get via `Dependency.getReferencedExports()`
+- There is a `weak` flag on the `Dependency` class
+- Ordering is only relevant to `HarmonyImportDependencies` and can be get via `sourceOrder` property
+
+(since beta.2)
+
+## Presentational Dependencies
+
+There is now a new type of dependency in `NormalModules`: Presentational Dependencies
+
+These dependencies are only used during the Code Generation phase but are not used during Module Graph building.
+So they can never have referenced modules or influence exports/imports.
+
+These dependencies are cheaper to process and webpack uses them when possible
+
+(since beta.2)
+
+## Deprecated loaders
+
+- [`null-loader`](https://github.com/webpack-contrib/null-loader)
+  
+  It will be deprecated. Use 
+  
+  ```js
+  alias: {
+      xyz$: false
+  }
+  ```  
+  
+  or use an absolute path
+ 
+  ```js
+  alias: { 
+    [path.resolve(__dirname, "....")]: false 
+  } 
+  ```
+  
 # Minor Changes
 
-- Compiler.name: When generating a compiler name with absolute paths, make sure to separate them with `|` or `!` on both parts of the name.
+- `Compiler.name`: When generating a compiler name with absolute paths, make sure to separate them with `|` or `!` on both parts of the name.
   - Using space as a separator is now deprecated. (Paths could contain spaces)
   - Hint: `|` is replaced with space in Stats string output.
-- SystemPlugin is now disabled by default.
+- `SystemPlugin` is now disabled by default.
   - MIGRATION: Avoid using it as the spec has been removed. You can re-enable it with `Rule.parser.system: true`
-- ModuleConcatenationPlugin: concatenation is no longer prevented by `DependencyVariables` as they have been removed
+- `ModuleConcatenationPlugin`: concatenation is no longer prevented by `DependencyVariables` as they have been removed
   - This means it can now concatenate in cases of `module`, `global`, `process` or the ProvidePlugin
 - `exec` removed from the loader context
   - MIGRATION: This can be implemented in the loader itself
 - `Stats.presetToOptions` removed
   - MIGRATION: Use `compilation.createStatsOptions` instead
-- SingleEntryPlugin and SingleEntryDependency removed
-  - MIGRATION: use EntryPlugin and EntryDependency
+- `SingleEntryPlugin` and `SingleEntryDependency` removed
+  - MIGRATION: use `EntryPlugin` and `EntryDependency`
 - Chunks can now have multiple entry modules
-- ExtendedAPIPlugin removed
+- `ExtendedAPIPlugin` removed
   - MIGRATION: No longer needed, `__webpack_hash__` and `__webpack_chunkname__` can always be used and runtime code is injected where needed.
-- ProgressPlugin `entries` option now defaults to `on`
-- ProgressPlugin `activeModules` option now defaults to `off` (since alpha.31)
-- ProgressPlugin no longer uses tapable context for `reportProgress`
+- `ProgressPlugin` no longer uses tapable context for `reportProgress`
   - MIGRATION: Use `ProgressPlugin.getReporter(compiler)` instead
-- ProvidePlugin is now re-enabled for `.mjs` files
-- Stats json `errors` and `warnings` no longer contain strings but objects with information splitted into properties.
+- `ProvidePlugin` is now re-enabled for `.mjs` files
+- `Stats` json `errors` and `warnings` no longer contain strings but objects with information splitted into properties.
   - MIGRATION: Access the information on the properties. i. e. `message`
-- Compilation.hooks.normalModuleLoader is deprecated
+- `Compilation.hooks.normalModuleLoader` is deprecated
   - MIGRATION: Use `NormalModule.getCompilationHooks(compilation).loader` instead
 - Changed hooks in `NormalModuleFactory` from waterfall to bailing, changed and renamed hooks that return waterfall functions (since alpha.5)
 - Removed `compilationParams.compilationDependencies` (since alpha.5)
@@ -653,7 +874,7 @@ webpack merges multiple export getters into a single runtime function call: `r.d
 - `__webpack_get_script_filename__` function added to get the filename of a script file (since alpha.12)
 - `getResolve(options)` in the loader API will merge options in a different way, see `module.rules` `resolve` (since alpha.13)
 - `"sideEffects"` in package.json will be handled by `glob-to-regex` instead of `micromatch` (since alpha.13)
-  - This may have changed semenatics in edge-cases
+  - This may have changed semantics in edge-cases
 - `checkContext` was removed from `IgnorePlugin` (since alpha.16)
 - New `__webpack_exports_info__` API allows export usage introspection (since alpha.21)
 - SourceMapDevToolPlugin applies to non-chunk assets too now (since alpha.27)
@@ -662,168 +883,175 @@ webpack merges multiple export getters into a single runtime function call: `r.d
 
 - removed buildin directory and replaced buildins with runtime modules
 - Removed deprecated features
-  - BannerPlugin now only support an options object
-- removed CachePlugin
-- Chunk.entryModule is deprecated
-- Chunk.hasEntryModule is deprecated
-- Chunk.addModule is deprecated
-- Chunk.removeModule is deprecated
-- Chunk.getNumberOfModules is deprecated
-- Chunk.modulesIterable is deprecated
-- Chunk.compareTo is deprecated
-- Chunk.containsModule is deprecated
-- Chunk.getModules is deprecated
-- Chunk.remove is deprecated
-- Chunk.moveModule is deprecated
-- Chunk.integrate is deprecated
-- Chunk.canBeIntegrated is deprecated
-- Chunk.isEmpty is deprecated
-- Chunk.modulesSize is deprecated
-- Chunk.size is deprecated
-- Chunk.integratedSize is deprecated
-- Chunk.getChunkModuleMaps is deprecated
-- Chunk.hasModuleInGraph is deprecated
-- Chunk.updateHash signature changed
-- Chunk.getChildIdsByOrders signature changed (TODO: consider moving to ChunkGraph)
-- Chunk.getChildIdsByOrdersMap signature changed (TODO: consider moving to ChunkGraph)
-- Chunk.getChunkModuleMaps removed
-- Chunk.setModules removed
+  - BannerPlugin now only support one argument that can be an object, string or function
+- removed `CachePlugin`
+- `Chunk.entryModule` is deprecated, use ChunkGraph instead
+- `Chunk.hasEntryModule` is deprecated
+- `Chunk.addModule` is deprecated
+- `Chunk.removeModule` is deprecated
+- `Chunk.getNumberOfModules` is deprecated
+- `Chunk.modulesIterable` is deprecated
+- `Chunk.compareTo` is deprecated
+- `Chunk.containsModule` is deprecated
+- `Chunk.getModules` is deprecated
+- `Chunk.remove` is deprecated
+- `Chunk.moveModule` is deprecated
+- `Chunk.integrate` is deprecated
+- `Chunk.canBeIntegrated` is deprecated
+- `Chunk.isEmpty` is deprecated
+- `Chunk.modulesSize` is deprecated
+- `Chunk.size` is deprecated
+- `Chunk.integratedSize` is deprecated
+- `Chunk.getChunkModuleMaps` is deprecated
+- `Chunk.hasModuleInGraph` is deprecated
+- `Chunk.updateHash` signature changed
+- `Chunk.getChildIdsByOrders` signature changed (TODO: consider moving to `ChunkGraph`)
+- `Chunk.getChildIdsByOrdersMap` signature changed (TODO: consider moving to `ChunkGraph`)
+- `Chunk.getChunkModuleMaps` removed
+- `Chunk.setModules` removed
 - deprecated Chunk methods removed
-- ChunkGraph added
-- ChunkGroup.setParents removed
-- ChunkGroup.containsModule removed
-- ChunkGroup.remove no longer disconnected the group from block
-- ChunkGroup.compareTo signature changed
-- ChunkGroup.getChildrenByOrders signature changed
-- ChunkGroup index and index renamed to pre/post order index
+- `ChunkGraph` added
+- `ChunkGroup.setParents` removed
+- `ChunkGroup.containsModule` removed
+- `ChunkGroup.remove` no longer disconnected the group from block
+- `ChunkGroup.compareTo` signature changed
+- `ChunkGroup.getChildrenByOrders` signature changed
+- `ChunkGroup` index and index renamed to pre/post order index
   - old getter is deprecated
-- ChunkTemplate.hooks.modules sigature changed
-- ChunkTemplate.hooks.render sigature changed
-- ChunkTemplate.updateHashForChunk sigature changed
-- Compilation.hooks.optimizeChunkOrder removed
-- Compilation.hooks.optimizeModuleOrder removed
-- Compilation.hooks.advancedOptimizeModuleOrder removed
-- Compilation.hooks.optimizeDependenciesBasic removed
-- Compilation.hooks.optimizeDependenciesAdvanced removed
-- Compilation.hooks.optimizeModulesBasic removed
-- Compilation.hooks.optimizeModulesAdvanced removed
-- Compilation.hooks.optimizeChunksBasic removed
-- Compilation.hooks.optimizeChunksAdvanced removed
-- Compilation.hooks.optimizeChunkModulesBasic removed
-- Compilation.hooks.optimizeChunkModulesAdvanced removed
-- Compilation.hooks.optimizeExtractedChunksBasic removed
-- Compilation.hooks.optimizeExtractedChunks removed
-- Compilation.hooks.optimizeExtractedChunksAdvanced removed
-- Compilation.hooks.afterOptimizeExtractedChunks removed
-- Compilation.hooks.stillValidModule added
-- Compilation.fileDependencies, Compilation.contextDependencies and Compilation.missingDependencies are now LazySets (since alpha.20)
-- Compilation.entries removed
+- `ChunkTemplate.hooks.modules` signature changed
+- `ChunkTemplate.hooks.render` signature changed
+- `ChunkTemplate.updateHashForChunk` signature changed
+- `Compilation.hooks.optimizeChunkOrder` removed
+- `Compilation.hooks.optimizeModuleOrder` removed
+- `Compilation.hooks.advancedOptimizeModuleOrder` removed
+- `Compilation.hooks.optimizeDependenciesBasic` removed
+- `Compilation.hooks.optimizeDependenciesAdvanced` removed
+- `Compilation.hooks.optimizeModulesBasic` removed
+- `Compilation.hooks.optimizeModulesAdvanced` removed
+- `Compilation.hooks.optimizeChunksBasic` removed
+- `Compilation.hooks.optimizeChunksAdvanced` removed
+- `Compilation.hooks.optimizeChunkModulesBasic` removed
+- `Compilation.hooks.optimizeChunkModulesAdvanced` removed
+- `Compilation.hooks.optimizeExtractedChunksBasic` removed
+- `Compilation.hooks.optimizeExtractedChunks` removed
+- `Compilation.hooks.optimizeExtractedChunksAdvanced` removed
+- `Compilation.hooks.afterOptimizeExtractedChunks` removed
+- `Compilation.hooks.stillValidModule` added
+- `Compilation.hooks.statsPreset` added
+- `Compilation.hooks.statsNormalize` added
+- `Compilation.hooks.statsFactory` added
+- `Compilation.hooks.statsPrinter` added
+- `Compilation.fileDependencies`, `Compilation.contextDependencies` and `Compilation.missingDependencies` are now LazySets (since alpha.20)
+- `Compilation.entries` removed
   - MIGRATION: Use `Compilation.entryDependencies` instead
-- Compilation.\_preparedEntrypoints removed
-- dependencyTemplates is now a `DependencyTemplates` class instead of a raw `Map`
-- Compilation.fileTimestamps and contextTimestamps removed
+- `Compilation._preparedEntrypoints` removed
+- `dependencyTemplates` is now a `DependencyTemplates` class instead of a raw `Map`
+- `Compilation.fileTimestamps` and `contextTimestamps` removed
   - MIGRATION: Use `Compilation.fileSystemInfo` instead
-- Compilation.waitForBuildingFinished removed
+- `Compilation.waitForBuildingFinished` removed
   - MIGRATION: Use the new queues
-- Compilation.addModuleDependencies removed
-- Compilation.prefetch removed
-- Compilation.hooks.beforeHash is now called after the hashes of modules are created
+- `Compilation.addModuleDependencies` removed
+- `Compilation.prefetch` removed
+- `Compilation.hooks.beforeHash` is now called after the hashes of modules are created
   - MIGRATION: Use `Compiliation.hooks.beforeModuleHash` instead
-- Compilation.applyModuleIds removed
-- Compilation.applyChunkIds removed
-- Compiler.root added, which points to the root compiler
+- `Compilation.applyModuleIds` removed
+- `Compilation.applyChunkIds` removed
+- `Compiler.root` added, which points to the root compiler
   - it can be used to cache data in WeakMaps instead of statically scoped
-- Compiler.hooks.afterDone added
-- Source.emitted is no longer set by the Compiler
+- `Compiler.hooks.afterDone` added
+- `Source.emitted` is no longer set by the Compiler
   - MIGRATION: Check `Compilation.emittedAssets` instead
-- Compiler/Compilation.compilerPath added: It's a unique name of the compiler in the compiler tree. (Unique to the root compiler scope)
-- Module.needRebuild deprecated
+- `Compiler/Compilation.compilerPath` added: It's a unique name of the compiler in the compiler tree. (Unique to the root compiler scope)
+- `Module.needRebuild` deprecated
   - MIGRATION: use `Module.needBuild` instead
-- Dependency.getReference signature changed
-- Dependency.getExports signature changed
-- Dependency.getWarnings signature changed
-- Dependency.getErrors signature changed
-- Dependency.updateHash signature changed
-- Dependency.module removed
-- There is now a base class for DependencyTemplate
-- MultiEntryDependency removed
-- EntryDependency added
-- EntryModuleNotFoundError removed
-- SingleEntryPlugin removed
-- EntryPlugin added
-- Generator.getTypes added
-- Generator.getSize added
-- Generator.generate signature changed
-- HotModuleReplacementPlugin.getParserHooks added
-- Parser was moved to JavascriptParser
-- ParserHelpers was moved to JavascriptParserHelpers
-- MainTemplate.hooks.moduleObj removed
-- MainTemplate.hooks.currentHash removed
-- MainTemplate.hooks.addModule removed
-- MainTemplate.hooks.requireEnsure removed
-- MainTemplate.hooks.globalHashPaths removed
-- MainTemplate.hooks.globalHash removed
-- MainTemplate.hooks.hotBootstrap removed
-- MainTemplate.hooks some signatures changed
-- Module.hash deprecated
-- Module.renderedHash deprecated
-- Module.reasons removed
-- Module.id deprecated
-- Module.index deprecated
-- Module.index2 deprecated
-- Module.depth deprecated
-- Module.issuer deprecated
-- Module.profile removed
-- Module.prefetched removed
-- Module.built removed
-- Module.used removed
+- `Dependency.getReference` signature changed
+- `Dependency.getExports` signature changed
+- `Dependency.getWarnings` signature changed
+- `Dependency.getErrors` signature changed
+- `Dependency.updateHash` signature changed
+- `Dependency.module` removed
+- There is now a base class for `DependencyTemplate`
+- `MultiEntryDependency` removed
+- `EntryDependency` added
+- `EntryModuleNotFoundError` removed
+- `SingleEntryPlugin` removed
+- `EntryPlugin` added
+- `Generator.getTypes` added
+- `Generator.getSize` added
+- `Generator.generate` signature changed
+- `HotModuleReplacementPlugin.getParserHooks` added
+- `Parser` was moved to `JavascriptParser`
+- `ParserHelpers` was moved to `JavascriptParserHelpers`
+- `MainTemplate.hooks.moduleObj` removed
+- `MainTemplate.hooks.currentHash` removed
+- `MainTemplate.hooks.addModule` removed
+- `MainTemplate.hooks.requireEnsure` removed
+- `MainTemplate.hooks.globalHashPaths` removed
+- `MainTemplate.hooks.globalHash` removed
+- `MainTemplate.hooks.hotBootstrap` removed
+- `MainTemplate.hooks` some signatures changed
+- `Module.hash` deprecated
+- `Module.renderedHash` deprecated
+- `Module.reasons` removed
+- `Module.id` deprecated
+- `Module.index` deprecated
+- `Module.index2` deprecated
+- `Module.depth` deprecated
+- `Module.issuer` deprecated
+- `Module.profile` removed
+- `Module.prefetched` removed
+- `Module.built` removed
+- `Module.used` removed
+  - MIGRATION: Use `Module.getUsedExports` instead
 - Module.usedExports deprecated
-- Module.optimizationBailout deprecated
-- Module.exportsArgument removed
-- Module.optional deprecated
-- Module.disconnect removed
-- Module.unseal removed
-- Module.setChunks removed
-- Module.addChunk deprecated
-- Module.removeChunk deprecated
-- Module.isInChunk deprecated
-- Module.isEntryModule deprecated
-- Module.getChunks deprecated
-- Module.getNumberOfChunks deprecated
-- Module.chunksIterable deprecated
-- Module.hasEqualsChunks removed
-- Module.useSourceMap moved to NormalModule
-- Module.addReason removed
-- Module.removeReason removed
-- Module.rewriteChunkInReasons removed
-- Module.isUsed removed
+  - MIGRATION: Use `Module.getUsedExports` instead
+- `Module.optimizationBailout` deprecated
+- `Module.exportsArgument` removed
+- `Module.optional` deprecated
+- `Module.disconnect` removed
+- `Module.unseal` removed
+- `Module.setChunks` removed
+- `Module.addChunk` deprecated
+- `Module.removeChunk` deprecated
+- `Module.isInChunk` deprecated
+- `Module.isEntryModule` deprecated
+- `Module.getChunks` deprecated
+- `Module.getNumberOfChunks` deprecated
+- `Module.chunksIterable` deprecated
+- `Module.hasEqualsChunks` removed
+- `Module.useSourceMap` moved to `NormalModule`
+- `Module.addReason` removed
+- `Module.removeReason` removed
+- `Module.rewriteChunkInReasons` removed
+- `Module.isUsed` removed
   - MIGRATION: Use `isModuleUsed`, `isExportUsed` and `getUsedName` instead
-- Module.updateHash signature changed
-- Module.sortItems removed
-- Module.unbuild removed
+- `Module.updateHash` signature changed
+- `Module.sortItems` removed
+- `Module.unbuild` removed
   - MIGRATION: Use `invalidateBuild` instead
-- Module.getSourceTypes added
-- Module.getRuntimeRequirements added
-- Module.size signature changed
-- ModuleFilenameHelpers.createFilename signature changed
-- ModuleProfile class added with more data
-- ModuleReason removed
-- ModuleTemplate.hooks signatures changed
-- ModuleTemplate.render signature changed
-- Compiler.dependencies removed
+- `Module.getSourceTypes` added
+- `Module.getRuntimeRequirements` added
+- `Module.size` signature changed
+- `ModuleFilenameHelpers.createFilename` signature changed
+- `ModuleProfile` class added with more data
+- `ModuleReason` removed
+- `ModuleTemplate.hooks` signatures changed
+- `ModuleTemplate.render` signature changed
+- `Compiler.dependencies` removed
   - MIGRATION: Use `MultiCompiler.setDependencies` instead
-- MultiModule removed
-- MultiModuleFactory removed
-- NormalModuleFactory.fileDependencies, NormalModuleFactory.contextDependencies and NormalModuleFactory.missingDependencies are now LazySets (since alpha.20)
-- RuntimeTemplate methods now take `runtimeRequirements` arguments
-- Stats.jsonToString removed
-- Stats.filterWarnings removed
-- Stats.getChildOptions removed
-- Stats helper methods removed
-- Stats.toJson signature changed (second argument removed)
-- ExternalModule.external removed
-- HarmonyInitDependency removed
-- Dependency.getInitFragments deprecated
+- `MultiModule` removed
+- `MultiModuleFactory` removed
+- `NormalModuleFactory.fileDependencies`, `NormalModuleFactory.contextDependencies` and `NormalModuleFactory.missingDependencies` are now LazySets (since alpha.20)
+- `RuntimeTemplate` methods now take `runtimeRequirements` arguments
+- `serve` property is removed
+- `Stats.jsonToString` removed
+- `Stats.filterWarnings` removed
+- `Stats.getChildOptions` removed
+- `Stats` helper methods removed
+- `Stats.toJson` signature changed (second argument removed)
+- `ExternalModule.external` removed
+- `HarmonyInitDependency` removed
+- `Dependency.getInitFragments` deprecated
   - MIGRATION: Use `apply` `initFragements` instead
 - DependencyReference now takes a function to a module instead of a Module
 - HarmonyImportSpecifierDependency.redirectedId removed
@@ -843,4 +1071,9 @@ webpack merges multiple export getters into a single runtime function call: `r.d
 - webpack-sources was upgraded: https://github.com/webpack/webpack-sources/releases/tag/v2.0.0-beta.0 (since alpha.8)
 - webpack-command support was removed (since alpha.12)
 - Use schema-utils@2 for schema validation (since alpha.20)
-- `Compiler.assetEmitted` has a improved second argument with more information (since alpha.27)
+- `Compiler.assetEmitted` has an improved second argument with more information (since alpha.27)
+- BannerPlugin omits trailing whitespace (since beta.1)
+- removed `minChunkSize` option from `LimitChunkCountPlugin` (since beta.1)
+- reorganize from javascript related files into sub-directory (since beta.1)
+  - `webpack.JavascriptModulesPlugin` -> `webpack.javascript.JavascriptModulesPlugin`
+- Logger.getChildLogger added (since beta.3)
